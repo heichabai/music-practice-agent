@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Tone from 'tone'
 import { FallingNotes } from './components/FallingNotes'
 import { PianoKeyboard } from './components/PianoKeyboard'
+import { ReportScreen } from './components/ReportScreen'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
+import { buildReport, type SessionReport } from './game/report'
 import { SONGS } from './game/songs'
+import type { PracticeMode } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
 
-type Screen = 'select' | 'play' | 'result'
+type Screen = 'select' | 'play' | 'report'
 
 // 电脑键盘 → midi（白键 A S D F G H J K，黑键 W E T Y U）
 const KEYBOARD_MAP: Record<string, number> = {
@@ -22,6 +25,7 @@ function sameHud(a: HudSnapshot, b: HudSnapshot): boolean {
   return (
     a.hits === b.hits &&
     a.errors === b.errors &&
+    a.misses === b.misses &&
     a.total === b.total &&
     a.progress === b.progress &&
     a.waiting === b.waiting &&
@@ -29,11 +33,19 @@ function sameHud(a: HudSnapshot, b: HudSnapshot): boolean {
   )
 }
 
+const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
+  wait: { label: '等待式', desc: '弹对才前进，适合认音和入门' },
+  free: { label: '自由式', desc: '连续播放，考察节奏和时值' },
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('select')
   const [songId, setSongId] = useState(SONGS[0].id)
+  const [mode, setMode] = useState<PracticeMode>('wait')
   const [hud, setHud] = useState<HudSnapshot | null>(null)
+  const [report, setReport] = useState<SessionReport | null>(null)
   const [pressedSet, setPressedSet] = useState<Set<number>>(new Set())
+  const [targetSet, setTargetSet] = useState<Set<number>>(new Set())
   const [wrong, setWrong] = useState<{ midi: number; id: number } | null>(null)
   const [synthOn, setSynthOn] = useState(true)
 
@@ -41,6 +53,7 @@ export default function App() {
   const synthRef = useRef<Tone.PolySynth | null>(null)
   const wrongTimerRef = useRef<number | null>(null)
   const finishedRef = useRef(false)
+  const targetSigRef = useRef('')
 
   const song = useMemo(() => SONGS.find(s => s.id === songId) ?? SONGS[0], [songId])
   const layout = useMemo(() => KeyboardLayout.fromNotes(song.notes), [song])
@@ -65,7 +78,6 @@ export default function App() {
         if (wrongTimerRef.current) window.clearTimeout(wrongTimerRef.current)
         wrongTimerRef.current = window.setTimeout(() => setWrong(null), 220)
       }
-      setHud(engine.hud())
     },
     [synthOn],
   )
@@ -77,6 +89,7 @@ export default function App() {
       next.delete(midi)
       return next
     })
+    engineRef.current?.release(midi)
   }, [])
 
   const handleNote = useCallback(
@@ -89,33 +102,39 @@ export default function App() {
 
   const { status: midiStatus, deviceName } = useMidiInput(handleNote)
 
-  const startSong = useCallback(async (id: string) => {
-    setSongId(id)
-    const s = SONGS.find(x => x.id === id) ?? SONGS[0]
-    engineRef.current = new GameEngine(s)
-    finishedRef.current = false
-    setHud(engineRef.current.hud())
-    setPressedSet(new Set())
-    setWrong(null)
-    try {
-      await Tone.start()
-      if (!synthRef.current) {
-        synthRef.current = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'triangle' },
-        }).toDestination()
-        synthRef.current.volume.value = -6
+  const startSong = useCallback(
+    async (id: string, practiceMode: PracticeMode) => {
+      setSongId(id)
+      const s = SONGS.find(x => x.id === id) ?? SONGS[0]
+      engineRef.current = new GameEngine(s, practiceMode)
+      finishedRef.current = false
+      targetSigRef.current = ''
+      setTargetSet(new Set())
+      setPressedSet(new Set())
+      setWrong(null)
+      setReport(null)
+      try {
+        await Tone.start()
+        if (!synthRef.current) {
+          synthRef.current = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'triangle' },
+          }).toDestination()
+          synthRef.current.volume.value = -6
+        }
+      } catch {
+        // 音频初始化失败不影响练习
       }
-    } catch {
-      // 音频初始化失败不影响练习
-    }
-    setScreen('play')
-  }, [])
+      setScreen('play')
+    },
+    [],
+  )
 
-  // 主循环：推进引擎时间
+  // 主循环：推进引擎时间 + 同步 HUD 与目标键高亮
   useEffect(() => {
     if (screen !== 'play') return
     let raf = 0
     let last = performance.now()
+    let lastTargetCheck = 0
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
@@ -124,9 +143,20 @@ export default function App() {
         engine.update((dt * engine.song.bpm) / 60)
         const h = engine.hud()
         setHud(prev => (prev && sameHud(prev, h) ? prev : h))
+        if (now - lastTargetCheck > 120) {
+          lastTargetCheck = now
+          const sig = engine.targetMidis().join(',')
+          if (sig !== targetSigRef.current) {
+            targetSigRef.current = sig
+            setTargetSet(new Set(engine.targetMidis()))
+          }
+        }
         if (h.finished && !finishedRef.current) {
           finishedRef.current = true
-          window.setTimeout(() => setScreen('result'), 600)
+          window.setTimeout(() => {
+            setReport(buildReport(engine))
+            setScreen('report')
+          }, 600)
         }
       }
       raf = requestAnimationFrame(loop)
@@ -158,11 +188,6 @@ export default function App() {
     }
   }, [screen, noteOn, noteOff])
 
-  const targetSet =
-    hud?.waiting && engineRef.current
-      ? new Set(engineRef.current.targetMidis())
-      : new Set<number>()
-
   const accuracy =
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
@@ -172,7 +197,7 @@ export default function App() {
         <div className="w-full max-w-2xl">
           <h1 className="text-3xl font-bold">琴键陪练 Agent</h1>
           <p className="mt-2 text-sm text-slate-400">
-            跟弹模式：弹对自动前进，弹错即时提示。支持 MIDI 键盘或电脑键盘。
+            支持 MIDI 键盘或电脑键盘，练习后生成会话报告。
           </p>
 
           <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
@@ -192,11 +217,33 @@ export default function App() {
             {midiStatus === 'init' && <span className="text-slate-400">正在检测 MIDI 设备…</span>}
           </div>
 
+          <div className="mt-6">
+            <h2 className="text-sm font-medium text-slate-300">练习模式</h2>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(Object.keys(MODE_INFO) as PracticeMode[]).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`rounded-lg border px-4 py-3 text-left transition ${
+                    mode === m
+                      ? 'border-amber-500 bg-amber-500/10'
+                      : 'border-slate-800 bg-slate-900 hover:bg-slate-800'
+                  }`}
+                >
+                  <div className={`font-medium ${mode === m ? 'text-amber-300' : 'text-slate-200'}`}>
+                    {MODE_INFO[m].label}
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-400">{MODE_INFO[m].desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-6 space-y-3">
             {SONGS.map(s => (
               <button
                 key={s.id}
-                onClick={() => void startSong(s.id)}
+                onClick={() => void startSong(s.id, mode)}
                 className="flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 text-left transition hover:border-amber-500/60 hover:bg-slate-800"
               >
                 <span className="text-lg font-medium">{s.name}</span>
@@ -218,7 +265,10 @@ export default function App() {
             >
               退出
             </button>
-            <span className="font-medium">{song.name}</span>
+            <span className="font-medium">
+              {song.name}
+              <span className="ml-2 text-xs text-slate-400">{MODE_INFO[mode].label}</span>
+            </span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
               <div
                 className="h-full rounded-full bg-amber-500 transition-all"
@@ -226,6 +276,7 @@ export default function App() {
               />
             </div>
             <span className="text-emerald-400">命中 {hud?.hits ?? 0}</span>
+            {mode === 'free' && <span className="text-orange-400">漏弹 {hud?.misses ?? 0}</span>}
             <span className="text-red-400">错音 {hud?.errors ?? 0}</span>
             <span className="text-slate-300">正确率 {(accuracy * 100).toFixed(0)}%</span>
             <button
@@ -250,46 +301,21 @@ export default function App() {
           </div>
 
           <p className="mt-3 text-center text-xs text-slate-500">
-            {hud?.waiting ? '弹琥珀色亮起的键' : '音符下落中…'}
+            {mode === 'wait'
+              ? hud?.waiting
+                ? '弹琥珀色亮起的键'
+                : '音符下落中…'
+              : '跟上节奏，音符到线时弹奏'}
           </p>
         </div>
       )}
 
-      {screen === 'result' && hud && (
-        <div className="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-8 text-center">
-          <h2 className="text-2xl font-bold">练习完成</h2>
-          <p className="mt-1 text-sm text-slate-400">{song.name}</p>
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-slate-800 p-4">
-              <div className="text-2xl font-bold text-emerald-400">{hud.hits}</div>
-              <div className="mt-1 text-xs text-slate-400">命中</div>
-            </div>
-            <div className="rounded-lg bg-slate-800 p-4">
-              <div className="text-2xl font-bold text-red-400">{hud.errors}</div>
-              <div className="mt-1 text-xs text-slate-400">错音</div>
-            </div>
-            <div className="rounded-lg bg-slate-800 p-4">
-              <div className="text-2xl font-bold text-amber-400">
-                {(accuracy * 100).toFixed(0)}%
-              </div>
-              <div className="mt-1 text-xs text-slate-400">正确率</div>
-            </div>
-          </div>
-          <div className="mt-8 flex justify-center gap-3">
-            <button
-              onClick={() => void startSong(song.id)}
-              className="rounded-lg bg-amber-500 px-5 py-2 font-medium text-slate-950 hover:bg-amber-400"
-            >
-              再练一次
-            </button>
-            <button
-              onClick={() => setScreen('select')}
-              className="rounded-lg border border-slate-700 px-5 py-2 text-slate-300 hover:bg-slate-800"
-            >
-              换一首
-            </button>
-          </div>
-        </div>
+      {screen === 'report' && report && (
+        <ReportScreen
+          report={report}
+          onRetry={() => void startSong(song.id, mode)}
+          onSelect={() => setScreen('select')}
+        />
       )}
     </div>
   )

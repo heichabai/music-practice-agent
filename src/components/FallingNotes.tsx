@@ -88,6 +88,8 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
 
           if (state === 'hit') {
             ctx.fillStyle = 'rgba(34,197,94,0.85)'
+          } else if (state === 'missed') {
+            ctx.fillStyle = 'rgba(239,68,68,0.75)'
           } else if (state === 'active') {
             const pulse = 0.7 + 0.3 * Math.sin(now / 120)
             ctx.fillStyle = `rgba(245,158,11,${pulse.toFixed(3)})`

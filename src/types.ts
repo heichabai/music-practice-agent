@@ -11,4 +11,7 @@ export interface Song {
   notes: Note[]
 }
 
-export type NoteState = 'pending' | 'active' | 'hit'
+export type NoteState = 'pending' | 'active' | 'hit' | 'missed'
+
+/** wait: 等待式（弹对才前进） free: 自由式（连续播放，按窗口判定） */
+export type PracticeMode = 'wait' | 'free'
