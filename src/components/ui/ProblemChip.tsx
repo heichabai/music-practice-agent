@@ -7,12 +7,12 @@ interface Props {
   count: number
 }
 
-/** 问题音胶囊：accent 描边 + 淡底，音名加粗 accent-strong（§4.3） */
+/** 问题音胶囊：发丝描边，文字克制（极简外壳） */
 export function ProblemChip({ name, issues, count }: Props) {
   return (
-    <div className="rounded-full border border-accent/40 bg-accent/10 px-4 py-1.5 text-sm">
-      <span className="font-semibold text-accent-strong">{name}</span>
-      <span className="ml-2 text-secondary">
+    <div className="inline-flex items-center gap-2 rounded-full border border-border-strong px-3 py-1 text-sm">
+      <span className="font-semibold text-primary tabular-nums">{name}</span>
+      <span className="text-secondary">
         {issues.join('、')}×{count}
       </span>
     </div>

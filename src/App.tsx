@@ -4,8 +4,7 @@ import { FallingNotes } from './components/FallingNotes'
 import { PianoKeyboard } from './components/PianoKeyboard'
 import { ReportScreen } from './components/ReportScreen'
 import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
-import { GhostButton } from './components/ui/Button'
-import { noteHue } from './components/notesPalette'
+import { GhostButton, PrimaryButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -36,9 +35,9 @@ function sameHud(a: HudSnapshot, b: HudSnapshot): boolean {
   )
 }
 
-const MODE_INFO: Record<PracticeMode, { label: string; desc: string; tag: string }> = {
-  wait: { label: '等待式', desc: '弹对才前进，适合认音和入门', tag: '入门友好' },
-  free: { label: '自由式', desc: '连续播放，考察节奏和时值', tag: '节奏训练' },
+const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
+  wait: { label: '等待式', desc: '弹对才前进，适合认音和入门' },
+  free: { label: '自由式', desc: '连续播放，考察节奏和时值' },
 }
 
 export default function App() {
@@ -195,41 +194,50 @@ export default function App() {
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center overflow-x-hidden bg-base px-4 py-6 text-primary">
-      {/* 顶部琥珀聚光灯光晕，透明度 ≤6%（§2.1） */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(245,158,11,0.06),transparent_70%)]"
-      />
-      <div className="relative flex w-full flex-col items-center">
+    <div className="flex min-h-screen flex-col items-center bg-base px-4 py-8 text-primary">
       {screen === 'select' && (
-        <div className="screen-enter w-full max-w-2xl">
-          {/* Hero */}
-          <div className="relative pt-2 pb-1">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent-strong">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--color-accent)]" />
-              Piano Practice · Powered by AI
-            </div>
-            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              琴键陪练
-              <span className="bg-gradient-to-r from-accent via-amber-300 to-orange-400 bg-clip-text text-transparent">
-                {' '}Agent
-              </span>
-            </h1>
-            <p className="mt-3 text-base text-secondary">
-              支持 MIDI 键盘或电脑键盘，跟随霓虹音符实时反馈，结束后生成专属会话报告。
+        <div className="screen-enter w-full max-w-3xl">
+          {/* Hero：apple 式大字 + pill CTA，留白充足 */}
+          <header className="pt-12 sm:pt-20">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Piano Practice · W2
             </p>
-          </div>
+            <h1 className="mt-6 text-5xl font-light leading-[1.05] tracking-tight text-primary sm:text-6xl">
+              琴键陪练
+              <span className="text-accent-strong"> Agent.</span>
+            </h1>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-secondary">
+              一处安静的练习场。逐音反馈，跟随霓虹音符学习弹琴。
+            </p>
+            <div className="mt-10 flex items-center gap-4">
+              <PrimaryButton
+                onClick={() => void startSong(SONGS[0].id, mode)}
+                className="px-7 py-3"
+              >
+                开始练习
+                <span aria-hidden>→</span>
+              </PrimaryButton>
+              <span className="text-xs text-muted">
+                支持 MIDI 键盘或电脑键盘
+              </span>
+            </div>
+          </header>
 
-          <div className="mt-5">
+          <hr className="mt-20 border-border-subtle" />
+
+          {/* MIDI 状态行 */}
+          <section className="mt-10">
             <MidiStatusBadge status={midiStatus} deviceName={deviceName} />
-          </div>
+          </section>
 
-          <div className="mt-7">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
-              练习模式
+          <hr className="mt-12 border-border-subtle" />
+
+          {/* 模式：pill segmented */}
+          <section className="mt-10">
+            <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Practice Mode
             </h2>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-5 inline-flex rounded-full border border-border-subtle p-1">
               {(Object.keys(MODE_INFO) as PracticeMode[]).map(m => {
                 const info = MODE_INFO[m]
                 const selected = mode === m
@@ -237,152 +245,106 @@ export default function App() {
                   <button
                     key={m}
                     onClick={() => setMode(m)}
-                    className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 ${
+                    className={`rounded-full px-5 py-2 text-sm transition-colors duration-150 ${
                       selected
-                        ? 'border-accent/70 bg-gradient-to-br from-accent/15 to-accent/5 shadow-[0_8px_28px_-8px_rgba(245,158,11,0.55)]'
-                        : 'border-border-subtle bg-surface hover:-translate-y-0.5 hover:border-border-strong hover:bg-raised'
+                        ? 'bg-primary text-base shadow-[0_1px_2px_rgba(0,0,0,0.6)]'
+                        : 'text-secondary hover:text-primary'
                     }`}
                   >
-                    {/* 顶部高光条 */}
-                    <span
-                      aria-hidden
-                      className={`absolute inset-x-0 top-0 h-0.5 transition-opacity ${
-                        selected ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      style={{
-                        background:
-                          'linear-gradient(90deg, transparent, rgb(251,191,36), transparent)',
-                      }}
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className={`text-base font-semibold ${selected ? 'text-accent-strong' : 'text-primary'}`}>
-                        {info.label}
-                      </div>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          selected
-                            ? 'bg-accent/20 text-accent-strong'
-                            : 'bg-raised text-secondary'
-                        }`}
-                      >
-                        {info.tag}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs leading-relaxed text-secondary">{info.desc}</div>
+                    {info.label}
                   </button>
                 )
               })}
             </div>
-          </div>
+            <p className="mt-3 max-w-md text-sm text-muted">
+              {MODE_INFO[mode].desc}
+            </p>
+          </section>
 
-          <div className="mt-7">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
-              曲目
+          <hr className="mt-12 border-border-subtle" />
+
+          {/* 曲目：apple 式编号列表 */}
+          <section className="mt-10 pb-16">
+            <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Pieces
             </h2>
-            <div className="mt-3 space-y-2.5">
-              {SONGS.map(s => {
-                const firstMidi = s.notes[0]?.midi ?? 60
-                const hue = noteHue(firstMidi)
-                return (
+            <ol className="mt-6">
+              {SONGS.map((s, i) => (
+                <li key={s.id}>
                   <button
-                    key={s.id}
                     onClick={() => void startSong(s.id, mode)}
-                    className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border-subtle bg-surface p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]"
+                    className="group flex w-full items-baseline gap-6 py-5 text-left transition-colors duration-150 hover:text-primary"
                   >
-                    {/* 左侧霓虹条 */}
+                    <span className="w-6 text-xs tabular-nums text-muted">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="flex-1 text-base text-primary">{s.name}</span>
+                    <span className="text-xs tabular-nums text-muted">
+                      {s.bpm} BPM · {s.notes.length} 音
+                    </span>
                     <span
                       aria-hidden
-                      className="absolute inset-y-2 left-0 w-1 rounded-r-full"
-                      style={{
-                        background: `linear-gradient(180deg, hsl(${hue},90%,70%), hsl(${(hue + 40) % 360},90%,55%))`,
-                        boxShadow: `0 0 12px hsla(${hue},90%,60%,0.7)`,
-                      }}
-                    />
-                    <div className="min-w-0 flex-1 pl-3">
-                      <div className="truncate text-base font-semibold text-primary">{s.name}</div>
-                      <div className="mt-1.5 flex items-center gap-2 text-xs text-secondary">
-                        <span className="inline-flex items-center gap-1 rounded-md bg-raised px-2 py-0.5 font-medium text-primary">
-                          <span className="h-1 w-1 rounded-full bg-accent" />
-                          {s.bpm} BPM
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-md bg-raised px-2 py-0.5 font-medium text-primary">
-                          {s.notes.length} 音
-                        </span>
-                      </div>
-                    </div>
-                    <span className="flex items-center gap-1.5 text-sm font-medium text-accent opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100">
-                      开始
-                      <span aria-hidden>→</span>
+                      className="text-sm text-accent opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    >
+                      开始 →
                     </span>
                   </button>
-                )
-              })}
-            </div>
-          </div>
+                  {i < SONGS.length - 1 && (
+                    <hr className="border-border-subtle" />
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
       )}
 
       {screen === 'play' && (
         <div className="screen-enter w-full max-w-4xl">
-          {/* 玻璃 HUD 工具栏 */}
-          <div className="glass mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-2.5 text-sm max-sm:text-xs">
+          {/* 极简 HUD：发丝下边框 + 细线进度条 */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border-subtle pb-4 text-sm max-sm:text-xs">
             <GhostButton onClick={() => setScreen('select')} className="px-3 py-1 text-xs">
               ‹ 退出
             </GhostButton>
-            <span className="font-semibold">
+            <span className="font-medium text-primary">
               {song.name}
-              <span className="ml-2 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
-                {MODE_INFO[mode].label}
-              </span>
+              <span className="ml-2 text-muted">{MODE_INFO[mode].label}</span>
             </span>
-            <div className="relative h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-raised/80 ring-1 ring-white/5">
+            <div className="relative h-px min-w-16 flex-1 overflow-hidden bg-border-strong/60">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-accent via-accent-strong to-orange-400 shadow-[0_0_10px_rgba(251,191,36,0.6)] transition-all"
+                className="absolute inset-y-0 left-0 bg-accent transition-all duration-150"
                 style={{ width: `${(hud?.progress ?? 0) * 100}%` }}
               />
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums max-sm:basis-full">
-              <span className="inline-flex items-center gap-1.5 text-hit">
-                <span className="h-1.5 w-1.5 rounded-full bg-hit shadow-[0_0_6px_var(--color-hit)]" />
-                命中 {hud?.hits ?? 0}
+            <div className="flex items-center gap-x-5 tabular-nums">
+              <span className="text-hit">命中 {hud?.hits ?? 0}</span>
+              {mode === 'free' && <span className="text-miss">漏弹 {hud?.misses ?? 0}</span>}
+              <span className="text-wrong">错音 {hud?.errors ?? 0}</span>
+              <span className="text-secondary">
+                {(accuracy * 100).toFixed(0)}%
               </span>
-              {mode === 'free' && (
-                <span className="inline-flex items-center gap-1.5 text-miss">
-                  <span className="h-1.5 w-1.5 rounded-full bg-miss shadow-[0_0_6px_var(--color-miss)]" />
-                  漏弹 {hud?.misses ?? 0}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1.5 text-wrong">
-                <span className="h-1.5 w-1.5 rounded-full bg-wrong shadow-[0_0_6px_var(--color-wrong)]" />
-                错音 {hud?.errors ?? 0}
-              </span>
-              <span className="text-primary">正确率 {(accuracy * 100).toFixed(0)}%</span>
             </div>
-            <GhostButton
+            <button
               onClick={() => setSynthOn(v => !v)}
-              className="px-3 py-1 text-xs"
+              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
             >
-              {synthOn ? '🔊 伴奏音 开' : '🔇 伴奏音 关'}
-            </GhostButton>
+              伴奏音 {synthOn ? '开' : '关'}
+            </button>
           </div>
 
-          {/* 画布 + 键盘 舞台区 */}
+          {/* 画布 + 键盘无缝衔接 */}
           <div ref={playAreaRef} className="relative w-full">
-            <div className="overflow-hidden rounded-2xl border border-border-subtle bg-black/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8),0_0_60px_-12px_rgba(245,158,11,0.25)] ring-1 ring-white/5">
-              <FallingNotes engineRef={engineRef} layout={layout} width={width} />
-            </div>
-            <div className="mt-3">
-              <PianoKeyboard
-                layout={layout}
-                width={width}
-                pressedSet={pressedSet}
-                targetSet={targetSet}
-                wrong={wrong}
-              />
-            </div>
+            <FallingNotes engineRef={engineRef} layout={layout} width={width} />
+            <PianoKeyboard
+              layout={layout}
+              width={width}
+              pressedSet={pressedSet}
+              targetSet={targetSet}
+              wrong={wrong}
+            />
           </div>
 
-          <p className="mt-4 text-center text-xs text-muted">
+          <p className="mt-5 text-center text-xs text-muted">
             {mode === 'wait'
               ? hud?.waiting
                 ? '弹奏亮起的目标键 · 弹对才前进'
@@ -401,7 +363,6 @@ export default function App() {
           />
         </div>
       )}
-      </div>
     </div>
   )
 }

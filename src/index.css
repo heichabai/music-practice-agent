@@ -1,15 +1,18 @@
 @import "tailwindcss";
 
-/* ---------- 设计令牌（docs/ui-design.md §2.1） ---------- */
+/* ---------- 设计令牌：极简外壳 ----------
+ * 底色近纯黑、强调色仅保留琥珀（brand）、文本克制
+ * 画布内部的发光与粒子由 FallingNotes 自行渲染
+ */
 @theme {
-  --color-base: #020617;
-  --color-surface: #0f172a;
-  --color-raised: #1e293b;
-  --color-border-subtle: #1e293b;
-  --color-border-strong: #334155;
-  --color-primary: #f1f5f9;
-  --color-secondary: #94a3b8;
-  --color-muted: #64748b;
+  --color-base: #0a0a0b;
+  --color-surface: #111114;
+  --color-raised: #18181c;
+  --color-border-subtle: #232328;
+  --color-border-strong: #2e2e34;
+  --color-primary: #ededee;
+  --color-secondary: #8b8b95;
+  --color-muted: #5a5a63;
   --color-accent: #f59e0b;
   --color-accent-strong: #fbbf24;
   --color-hit: #22c55e;
@@ -28,7 +31,7 @@ body {
   @apply bg-base text-primary antialiased;
 }
 
-/* ---------- 页面切换：200ms 渐入 + 上移 8px（§2.4 / §3） ---------- */
+/* ---------- 页面切换：200ms 渐入 + 上移 8px ---------- */
 @keyframes screen-enter {
   from {
     opacity: 0;
@@ -58,47 +61,18 @@ body {
   animation: stat-pop 240ms ease-out both;
 }
 
-/* ---------- 目标键脉冲：透明度 0.7↔1.0 正弦感循环 ---------- */
+/* ---------- 目标键脉冲：柔和透明度呼吸（替代之前亮度脉冲） ---------- */
 @keyframes target-pulse {
   0%,
   100% {
-    opacity: 0.78;
-    filter: brightness(1);
+    opacity: 0.75;
   }
   50% {
     opacity: 1;
-    filter: brightness(1.15);
   }
 }
 .target-pulse {
   animation: target-pulse 1.2s ease-in-out infinite;
-}
-
-/* ---------- 评级徽章入场：缩放 + 发光展开 ---------- */
-@keyframes rating-enter {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.rating-enter {
-  animation: rating-enter 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-/* ---------- 玻璃拟态工具类 ---------- */
-.glass {
-  background-color: color-mix(in oklab, var(--color-surface) 65%, transparent);
-  backdrop-filter: blur(12px) saturate(1.4);
-  -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border: 1px solid color-mix(in oklab, var(--color-border-subtle) 80%, transparent);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* ---------- 焦点环：全站可交互元素 focus-visible，accent 2px / offset 2px ---------- */
@@ -108,12 +82,11 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- prefers-reduced-motion：关闭脉冲/入场/过渡 ---------- */
+/* ---------- prefers-reduced-motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .screen-enter,
   .stat-enter,
-  .target-pulse,
-  .rating-enter {
+  .target-pulse {
     animation: none;
   }
   *,
