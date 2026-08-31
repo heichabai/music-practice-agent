@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:coach": "tsx scripts/coach-demo.ts"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -19,6 +20,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
     "tailwindcss": "^4.1.0",
+    "tsx": "^4.23.13",
     "typescript": "~5.8.0",
     "vite": "^6.3.0"
   }

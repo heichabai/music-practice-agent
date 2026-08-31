@@ -12,6 +12,7 @@ export interface ProblemNote {
 export interface SessionReport {
   songName: string
   mode: PracticeMode
+  bpm: number
   total: number
   hits: number
   misses: number
@@ -77,6 +78,7 @@ export function buildReport(engine: GameEngine): SessionReport {
   return {
     songName: song.name,
     mode: engine.mode,
+    bpm: song.bpm,
     total: song.notes.length,
     hits: engine.hits,
     misses,
