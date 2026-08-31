@@ -8,6 +8,7 @@ import { GhostButton, PrimaryButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
+import { saveSession } from './storage/sessionStore'
 import { SONGS } from './game/songs'
 import type { PracticeMode } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
@@ -156,7 +157,9 @@ export default function App() {
         if (h.finished && !finishedRef.current) {
           finishedRef.current = true
           window.setTimeout(() => {
-            setReport(buildReport(engine))
+            const r = buildReport(engine)
+            saveSession(r)
+            setReport(r)
             setScreen('report')
           }, 600)
         }
