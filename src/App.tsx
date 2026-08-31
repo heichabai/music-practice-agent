@@ -3,6 +3,9 @@ import * as Tone from 'tone'
 import { FallingNotes } from './components/FallingNotes'
 import { PianoKeyboard } from './components/PianoKeyboard'
 import { ReportScreen } from './components/ReportScreen'
+import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
+import { GhostButton } from './components/ui/Button'
+import { noteHue } from './components/notesPalette'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -33,9 +36,9 @@ function sameHud(a: HudSnapshot, b: HudSnapshot): boolean {
   )
 }
 
-const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
-  wait: { label: '等待式', desc: '弹对才前进，适合认音和入门' },
-  free: { label: '自由式', desc: '连续播放，考察节奏和时值' },
+const MODE_INFO: Record<PracticeMode, { label: string; desc: string; tag: string }> = {
+  wait: { label: '等待式', desc: '弹对才前进，适合认音和入门', tag: '入门友好' },
+  free: { label: '自由式', desc: '连续播放，考察节奏和时值', tag: '节奏训练' },
 }
 
 export default function App() {
@@ -192,104 +195,183 @@ export default function App() {
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-slate-950 px-4 py-6 text-slate-100">
+    <div className="relative flex min-h-screen flex-col items-center overflow-x-hidden bg-base px-4 py-6 text-primary">
+      {/* 顶部琥珀聚光灯光晕，透明度 ≤6%（§2.1） */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(245,158,11,0.06),transparent_70%)]"
+      />
+      <div className="relative flex w-full flex-col items-center">
       {screen === 'select' && (
-        <div className="w-full max-w-2xl">
-          <h1 className="text-3xl font-bold">琴键陪练 Agent</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            支持 MIDI 键盘或电脑键盘，练习后生成会话报告。
-          </p>
-
-          <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
-            {midiStatus === 'ok' && (
-              <span className="text-emerald-400">MIDI 已连接 · {deviceName}</span>
-            )}
-            {midiStatus === 'no-device' && (
-              <span className="text-amber-400">
-                未检测到 MIDI 设备，可用电脑键盘弹奏（A S D F G H J K 白键 · W E T Y U 黑键）
+        <div className="screen-enter w-full max-w-2xl">
+          {/* Hero */}
+          <div className="relative pt-2 pb-1">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-medium text-accent-strong">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--color-accent)]" />
+              Piano Practice · Powered by AI
+            </div>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+              琴键陪练
+              <span className="bg-gradient-to-r from-accent via-amber-300 to-orange-400 bg-clip-text text-transparent">
+                {' '}Agent
               </span>
-            )}
-            {midiStatus === 'unsupported' && (
-              <span className="text-amber-400">
-                当前浏览器不支持 Web MIDI，请用 Chrome / Edge 打开；电脑键盘仍可弹奏
-              </span>
-            )}
-            {midiStatus === 'init' && <span className="text-slate-400">正在检测 MIDI 设备…</span>}
+            </h1>
+            <p className="mt-3 text-base text-secondary">
+              支持 MIDI 键盘或电脑键盘，跟随霓虹音符实时反馈，结束后生成专属会话报告。
+            </p>
           </div>
 
-          <div className="mt-6">
-            <h2 className="text-sm font-medium text-slate-300">练习模式</h2>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {(Object.keys(MODE_INFO) as PracticeMode[]).map(m => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`rounded-lg border px-4 py-3 text-left transition ${
-                    mode === m
-                      ? 'border-amber-500 bg-amber-500/10'
-                      : 'border-slate-800 bg-slate-900 hover:bg-slate-800'
-                  }`}
-                >
-                  <div className={`font-medium ${mode === m ? 'text-amber-300' : 'text-slate-200'}`}>
-                    {MODE_INFO[m].label}
-                  </div>
-                  <div className="mt-0.5 text-xs text-slate-400">{MODE_INFO[m].desc}</div>
-                </button>
-              ))}
+          <div className="mt-5">
+            <MidiStatusBadge status={midiStatus} deviceName={deviceName} />
+          </div>
+
+          <div className="mt-7">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+              练习模式
+            </h2>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {(Object.keys(MODE_INFO) as PracticeMode[]).map(m => {
+                const info = MODE_INFO[m]
+                const selected = mode === m
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all duration-200 ${
+                      selected
+                        ? 'border-accent/70 bg-gradient-to-br from-accent/15 to-accent/5 shadow-[0_8px_28px_-8px_rgba(245,158,11,0.55)]'
+                        : 'border-border-subtle bg-surface hover:-translate-y-0.5 hover:border-border-strong hover:bg-raised'
+                    }`}
+                  >
+                    {/* 顶部高光条 */}
+                    <span
+                      aria-hidden
+                      className={`absolute inset-x-0 top-0 h-0.5 transition-opacity ${
+                        selected ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      style={{
+                        background:
+                          'linear-gradient(90deg, transparent, rgb(251,191,36), transparent)',
+                      }}
+                    />
+                    <div className="flex items-center justify-between">
+                      <div className={`text-base font-semibold ${selected ? 'text-accent-strong' : 'text-primary'}`}>
+                        {info.label}
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          selected
+                            ? 'bg-accent/20 text-accent-strong'
+                            : 'bg-raised text-secondary'
+                        }`}
+                      >
+                        {info.tag}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs leading-relaxed text-secondary">{info.desc}</div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          <div className="mt-6 space-y-3">
-            {SONGS.map(s => (
-              <button
-                key={s.id}
-                onClick={() => void startSong(s.id, mode)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-5 py-4 text-left transition hover:border-amber-500/60 hover:bg-slate-800"
-              >
-                <span className="text-lg font-medium">{s.name}</span>
-                <span className="text-sm text-slate-400">
-                  {s.bpm} BPM · {s.notes.length} 音
-                </span>
-              </button>
-            ))}
+          <div className="mt-7">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+              曲目
+            </h2>
+            <div className="mt-3 space-y-2.5">
+              {SONGS.map(s => {
+                const firstMidi = s.notes[0]?.midi ?? 60
+                const hue = noteHue(firstMidi)
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => void startSong(s.id, mode)}
+                    className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-border-subtle bg-surface p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]"
+                  >
+                    {/* 左侧霓虹条 */}
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-2 left-0 w-1 rounded-r-full"
+                      style={{
+                        background: `linear-gradient(180deg, hsl(${hue},90%,70%), hsl(${(hue + 40) % 360},90%,55%))`,
+                        boxShadow: `0 0 12px hsla(${hue},90%,60%,0.7)`,
+                      }}
+                    />
+                    <div className="min-w-0 flex-1 pl-3">
+                      <div className="truncate text-base font-semibold text-primary">{s.name}</div>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs text-secondary">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-raised px-2 py-0.5 font-medium text-primary">
+                          <span className="h-1 w-1 rounded-full bg-accent" />
+                          {s.bpm} BPM
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-raised px-2 py-0.5 font-medium text-primary">
+                          {s.notes.length} 音
+                        </span>
+                      </div>
+                    </div>
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-accent opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100">
+                      开始
+                      <span aria-hidden>→</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
 
       {screen === 'play' && (
-        <div className="w-full max-w-4xl">
-          <div className="mb-3 flex items-center gap-4 text-sm">
-            <button
-              onClick={() => setScreen('select')}
-              className="rounded border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
-            >
-              退出
-            </button>
-            <span className="font-medium">
+        <div className="screen-enter w-full max-w-4xl">
+          {/* 玻璃 HUD 工具栏 */}
+          <div className="glass mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-2.5 text-sm max-sm:text-xs">
+            <GhostButton onClick={() => setScreen('select')} className="px-3 py-1 text-xs">
+              ‹ 退出
+            </GhostButton>
+            <span className="font-semibold">
               {song.name}
-              <span className="ml-2 text-xs text-slate-400">{MODE_INFO[mode].label}</span>
+              <span className="ml-2 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-strong">
+                {MODE_INFO[mode].label}
+              </span>
             </span>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
+            <div className="relative h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-raised/80 ring-1 ring-white/5">
               <div
-                className="h-full rounded-full bg-amber-500 transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-accent via-accent-strong to-orange-400 shadow-[0_0_10px_rgba(251,191,36,0.6)] transition-all"
                 style={{ width: `${(hud?.progress ?? 0) * 100}%` }}
               />
             </div>
-            <span className="text-emerald-400">命中 {hud?.hits ?? 0}</span>
-            {mode === 'free' && <span className="text-orange-400">漏弹 {hud?.misses ?? 0}</span>}
-            <span className="text-red-400">错音 {hud?.errors ?? 0}</span>
-            <span className="text-slate-300">正确率 {(accuracy * 100).toFixed(0)}%</span>
-            <button
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums max-sm:basis-full">
+              <span className="inline-flex items-center gap-1.5 text-hit">
+                <span className="h-1.5 w-1.5 rounded-full bg-hit shadow-[0_0_6px_var(--color-hit)]" />
+                命中 {hud?.hits ?? 0}
+              </span>
+              {mode === 'free' && (
+                <span className="inline-flex items-center gap-1.5 text-miss">
+                  <span className="h-1.5 w-1.5 rounded-full bg-miss shadow-[0_0_6px_var(--color-miss)]" />
+                  漏弹 {hud?.misses ?? 0}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 text-wrong">
+                <span className="h-1.5 w-1.5 rounded-full bg-wrong shadow-[0_0_6px_var(--color-wrong)]" />
+                错音 {hud?.errors ?? 0}
+              </span>
+              <span className="text-primary">正确率 {(accuracy * 100).toFixed(0)}%</span>
+            </div>
+            <GhostButton
               onClick={() => setSynthOn(v => !v)}
-              className="rounded border border-slate-700 px-3 py-1 text-slate-300 hover:bg-slate-800"
+              className="px-3 py-1 text-xs"
             >
-              伴奏音 {synthOn ? '开' : '关'}
-            </button>
+              {synthOn ? '🔊 伴奏音 开' : '🔇 伴奏音 关'}
+            </GhostButton>
           </div>
 
-          <div ref={playAreaRef} className="w-full">
-            <FallingNotes engineRef={engineRef} layout={layout} width={width} />
-            <div className="mt-2">
+          {/* 画布 + 键盘 舞台区 */}
+          <div ref={playAreaRef} className="relative w-full">
+            <div className="overflow-hidden rounded-2xl border border-border-subtle bg-black/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8),0_0_60px_-12px_rgba(245,158,11,0.25)] ring-1 ring-white/5">
+              <FallingNotes engineRef={engineRef} layout={layout} width={width} />
+            </div>
+            <div className="mt-3">
               <PianoKeyboard
                 layout={layout}
                 width={width}
@@ -300,23 +382,26 @@ export default function App() {
             </div>
           </div>
 
-          <p className="mt-3 text-center text-xs text-slate-500">
+          <p className="mt-4 text-center text-xs text-muted">
             {mode === 'wait'
               ? hud?.waiting
-                ? '弹琥珀色亮起的键'
+                ? '弹奏亮起的目标键 · 弹对才前进'
                 : '音符下落中…'
-              : '跟上节奏，音符到线时弹奏'}
+              : '跟上节奏 · 音符到判定线时弹奏'}
           </p>
         </div>
       )}
 
       {screen === 'report' && report && (
-        <ReportScreen
-          report={report}
-          onRetry={() => void startSong(song.id, mode)}
-          onSelect={() => setScreen('select')}
-        />
+        <div className="screen-enter flex w-full justify-center">
+          <ReportScreen
+            report={report}
+            onRetry={() => void startSong(song.id, mode)}
+            onSelect={() => setScreen('select')}
+          />
+        </div>
       )}
+      </div>
     </div>
   )
 }
