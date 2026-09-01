@@ -87,6 +87,8 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
     const embers: Ember[] = []
     const prevStates: (string | null)[] = []
     const lastTrailAt = new Map<number, number>()
+    // 命中闪光环：noteIndex → 命中时刻
+    const hitRings = new Map<number, number>()
 
     let raf = 0
     let lastT = performance.now()
@@ -131,6 +133,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
           const cur = engine.states[i]
           const prev = prevStates[i]
           if (cur === 'hit' && prev !== 'hit') {
+            hitRings.set(i, now)
             const note = engine.song.notes[i]
             const g = layout.geom(note.midi, width)
             const hs = noteHsl(note.midi)
@@ -225,6 +228,24 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
           ctx.fill()
         }
         ctx.shadowBlur = 0
+      }
+
+      // ---------- 命中闪光环：命中线上一圈快速扩散的光环（信息性反馈，reduceMotion 下保留） ----------
+      for (const [noteIdx, tHit] of hitRings) {
+        const age = now - tHit
+        if (age > 380) {
+          hitRings.delete(noteIdx)
+          continue
+        }
+        const note = engine.song.notes[noteIdx]
+        const g = layout.geom(note.midi, width)
+        const progress = age / 380
+        const radius = 10 + progress * 30
+        ctx.beginPath()
+        ctx.arc(g.x + g.w / 2, hitY, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(245, 158, 11, ${(1 - progress) * 0.5})`
+        ctx.lineWidth = 2
+        ctx.stroke()
       }
 
       // ---------- 绘制音符 ----------
