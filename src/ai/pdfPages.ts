@@ -2,15 +2,31 @@ export const MAX_PDF_PAGES = 8
 
 const MAX_EDGE = 1568
 
+type PdfjsModule = typeof import('pdfjs-dist')
+
+async function loadPdfjs(): Promise<PdfjsModule> {
+  const mod = (await import('pdfjs-dist')) as unknown as {
+    getDocument?: PdfjsModule['getDocument']
+    GlobalWorkerOptions?: PdfjsModule['GlobalWorkerOptions']
+    default?: PdfjsModule
+  }
+  const pdfjs =
+    mod.getDocument !== undefined ? (mod as unknown as PdfjsModule) : (mod.default ?? (mod as unknown as PdfjsModule))
+  const workerModule = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')) as {
+    default: string
+  }
+  if (pdfjs.GlobalWorkerOptions) {
+    pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default
+  }
+  return pdfjs
+}
+
 /**
  * 将 PDF 每页渲染为 JPEG data URL（最长边不超过 1568px）。
  * pdfjs 按需动态加载，不进主包：老浏览器上仅 PDF 功能不可用，不影响其余功能。
  */
 export async function pdfToImageDataUrls(buffer: ArrayBuffer): Promise<string[]> {
-  const pdfjs = await import('pdfjs-dist')
-  const workerModule = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
-  pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default
-
+  const pdfjs = await loadPdfjs()
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise
   const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES)
   const urls: string[] = []
@@ -26,7 +42,7 @@ export async function pdfToImageDataUrls(buffer: ArrayBuffer): Promise<string[]>
     if (!ctx) throw new Error('无法创建画布')
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    await page.render({ canvas, canvasContext: ctx, viewport }).promise
+    await page.render({ canvasContext: ctx, viewport }).promise
     urls.push(canvas.toDataURL('image/jpeg', 0.85))
   }
   return urls
