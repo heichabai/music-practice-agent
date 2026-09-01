@@ -26,10 +26,13 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const sizeSvg = () => {
     const svg = hostRef.current?.querySelector('svg')
     if (!svg || sizedRef.current) return
-    const box = svg.getBoundingClientRect()
-    if (box.width === 0 || box.height === 0) return
-    const scale = STRIP_H / box.height
-    svg.style.width = `${box.width * scale}px`
+    const natW = parseFloat(svg.getAttribute('width') ?? '') || svg.getBoundingClientRect().width
+    const natH = parseFloat(svg.getAttribute('height') ?? '') || svg.getBoundingClientRect().height
+    if (!Number.isFinite(natW) || !Number.isFinite(natH) || natW === 0 || natH === 0) return
+    // abcjs 的 svg 不带 viewBox：直接改高度只会裁剪，必须显式补上才能等比缩放
+    svg.setAttribute('viewBox', `0 0 ${natW} ${natH}`)
+    const scale = STRIP_H / natH
+    svg.style.width = `${natW * scale}px`
     svg.style.height = `${STRIP_H}px`
     svg.style.display = 'block'
     sizedRef.current = true

@@ -39,6 +39,18 @@ await page.reload({ waitUntil: 'domcontentloaded' })
 await page.click('text=E2E测试曲')
 await page.waitForSelector('.abcjs-note', { timeout: 8000 })
 
+const svgCheck = await page.evaluate(() => {
+  const svg = document.querySelector('.score-strip svg')
+  if (!svg) return { ok: false }
+  const vb = svg.getAttribute('viewBox')
+  const box = svg.getBoundingClientRect()
+  return { ok: vb !== null, viewBox: vb, w: Math.round(box.width), h: Math.round(box.height) }
+})
+console.log(
+  'SVG 等比缩放:',
+  svgCheck.ok ? `viewBox=${svgCheck.viewBox}，显示 ${svgCheck.w}x${svgCheck.h}` : '缺 viewBox（内容会被裁剪）',
+)
+
 const notationFirst = (await page.locator('.abcjs-note').count()) > 0
 console.log('有原图的曲目默认显示五线谱:', notationFirst ? '是' : '否')
 
