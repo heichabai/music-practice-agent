@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
   const useProxyAgent = provider === 'gemini' && env.GEMINI_PROXY !== 'off'
 
   return {
+    base: './',
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {

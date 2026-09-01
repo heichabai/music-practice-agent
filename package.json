@@ -3,12 +3,38 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "demo:coach": "tsx scripts/coach-demo.ts",
-    "omr": "node scripts/omr-server.mjs"
+    "omr": "node scripts/omr-server.mjs",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:prepare": "node scripts/prepare-desktop.mjs",
+    "desktop:build": "npm run desktop:prepare && npm run build && electron-builder --mac --arm64"
+  },
+  "build": {
+    "appId": "com.heichabai.pianocoach",
+    "productName": "琴键陪练",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "scripts/musicxml.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "engine-locals/Audiveris.app", "to": "engine/Audiveris.app" },
+      { "from": "engine-locals/realesrgan", "to": "engine/realesrgan" },
+      { "from": "engine-locals/default-config.json", "to": "default-config.json" }
+    ],
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["arm64"] }],
+      "category": "public.app-category.music"
+    }
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
@@ -23,6 +49,8 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3",
     "https-proxy-agent": "^9.1.0",
     "playwright-core": "^1.62.1",
     "tailwindcss": "^4.1.0",
