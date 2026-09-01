@@ -27,14 +27,14 @@ export function noteHue(midi: number): number {
 /** 音高对应的 RGB hex（适合 DOM 用） */
 export function noteHex(midi: number): string {
   const h = noteHue(midi)
-  return hslToHex(h, 78, 72)
+  return hslToHex(h, 46, 81)
 }
 
 /** DOM/canvas 通用：返回 hsla 字符串 */
 export function noteRgba(midi: number, alpha = 1): string {
   const h = noteHue(midi)
-  const s = 78
-  const l = 72
+  const s = 46
+  const l = 81
   return `hsla(${h}, ${s}%, ${l}%, ${alpha})`
 }
 
@@ -45,7 +45,7 @@ export function noteGlow(midi: number, blur = 18, alpha = 0.55): string {
 
 /** canvas 用：拆出 h/s/l 用于构建渐变 */
 export function noteHsl(midi: number): { h: number; s: number; l: number } {
-  return { h: noteHue(midi), s: 78, l: 72 }
+  return { h: noteHue(midi), s: 46, l: 81 }
 }
 
 function hslToHex(h: number, s: number, l: number): string {

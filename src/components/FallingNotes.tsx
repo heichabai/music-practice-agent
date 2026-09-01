@@ -60,9 +60,9 @@ function makeNoteGradient(
 ): CanvasGradient {
   // 顶亮核 → 中饱和 → 底深
   const g = ctx.createLinearGradient(x, y, x, y + h)
-  g.addColorStop(0, `hsla(${hue}, ${sat}%, ${Math.min(98, lit + 22)}%, ${alpha})`)
+  g.addColorStop(0, `hsla(${hue}, ${sat}%, ${Math.min(96, lit + 11)}%, ${alpha})`)
   g.addColorStop(0.5, `hsla(${hue}, ${sat}%, ${lit}%, ${alpha})`)
-  g.addColorStop(1, `hsla(${hue}, ${sat}%, ${Math.max(20, lit - 30)}%, ${alpha})`)
+  g.addColorStop(1, `hsla(${hue}, ${sat}%, ${Math.max(45, lit - 16)}%, ${alpha})`)
   return g
 }
 
@@ -248,17 +248,17 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         if (state === 'hit') {
           // 命中：翠绿渐变 + 强 bloom
           fill = makeNoteGradient(ctx, x, top, h, 150, 75, 60, 1)
-          blur = reduceMotion ? 0 : 26
-          shadowCol = 'rgba(34,197,94,0.95)'
+          blur = reduceMotion ? 0 : 14
+          shadowCol = 'rgba(34,197,94,0.72)'
         } else if (state === 'missed') {
           fill = makeNoteGradient(ctx, x, top, h, 0, 75, 55, 0.85)
-          blur = reduceMotion ? 0 : 14
-          shadowCol = 'rgba(239,68,68,0.7)'
+          blur = reduceMotion ? 0 : 9
+          shadowCol = 'rgba(239,68,68,0.55)'
         } else if (state === 'active') {
           const pulse = 0.82 + 0.18 * Math.sin(now / 220)
           fill = makeNoteGradient(ctx, x, top, h, hs.h, hs.s, hs.l, pulse)
-          blur = reduceMotion ? 0 : 22
-          shadowCol = `hsla(${hs.h}, ${hs.s}%, ${Math.min(92, hs.l + 14)}%, 0.85)`
+          blur = reduceMotion ? 0 : 12
+          shadowCol = `hsla(${hs.h}, ${hs.s}%, ${Math.min(92, hs.l + 14)}%, 0.6)`
         } else {
           // pending：贴底色但保留极淡光晕
           fill = makeNoteGradient(
@@ -271,7 +271,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
             Math.max(45, hs.l - 12),
             0.85,
           )
-          blur = reduceMotion ? 0 : 8
+          blur = reduceMotion ? 0 : 5
           shadowCol = `hsla(${hs.h}, ${hs.s}%, ${hs.l}%, 0.4)`
         }
 
