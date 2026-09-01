@@ -16,7 +16,6 @@ export function musicxmlToSong(xml, fallbackName) {
   const voices = new Map()
   let posQ = 0
   let lastOnsetQ = 0
-
   const eventRe =
     /<note\b[^>]*>([\s\S]*?)<\/note>|<backup\b[^>]*>([\s\S]*?)<\/backup>|<forward\b[^>]*>([\s\S]*?)<\/forward>|<divisions>(\d+)<\/divisions>/g
 
@@ -50,13 +49,17 @@ export function musicxmlToSong(xml, fallbackName) {
       /<pitch>\s*<step>([A-G])<\/step>\s*(?:<alter>(-?\d+)<\/alter>)?\s*<octave>(\d+)<\/octave>\s*<\/pitch>/,
     )
     const voice = Number(noteXml.match(/<voice>(\d+)<\/voice>/)?.[1] ?? 1)
+    const staff = Number(noteXml.match(/<staff>(\d+)<\/staff>/)?.[1] ?? 1)
     const isChord = noteXml.includes('<chord')
 
     if (pitch) {
       const midi = (Number(pitch[3]) + 1) * 12 + STEP_SEMI[pitch[1]] + Number(pitch[2] ?? 0)
       const onset = isChord ? lastOnsetQ : posQ
-      if (!voices.has(voice)) voices.set(voice, [])
-      voices.get(voice).push({ midi, onset, durQ })
+      const key = `${staff}:${voice}`
+      if (!voices.has(key)) voices.set(key, { notes: [], sum: 0 })
+      const group = voices.get(key)
+      group.notes.push({ midi, onset, durQ })
+      group.sum += midi
     }
     if (!isChord) {
       posQ += durQ
@@ -64,14 +67,18 @@ export function musicxmlToSong(xml, fallbackName) {
     }
   }
 
-  let best = null
-  for (const notes of voices.values()) {
-    if (!best || notes.length > best.length) best = notes
-  }
-  if (!best || best.length === 0) throw new Error('MusicXML 中没有可用的音符')
+  if (voices.size === 0) throw new Error('MusicXML 中没有可用的音符')
+
+  // 旋律提取：在音符数足够的声部里选平均音高最高的（右手旋律恒高于左手伴奏）
+  const groups = [...voices.values()]
+  const qualified = groups.filter(g => g.notes.length >= 5)
+  const pool = qualified.length > 0 ? qualified : groups
+  const best = pool.reduce((a, b) =>
+    a.sum / a.notes.length >= b.sum / b.notes.length ? a : b,
+  )
 
   const seen = new Set()
-  const notes = best
+  const notes = best.notes
     .map(n => ({
       midi: n.midi,
       time: Math.max(0, Math.round(n.onset * 4) / 4),
