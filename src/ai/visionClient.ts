@@ -1,6 +1,6 @@
 import { LlmError } from './llmClient'
 
-interface ZhipuChatResponse {
+interface ChatResponse {
   choices?: Array<{ message?: { content?: string }; finish_reason?: string }>
 }
 
@@ -9,9 +9,18 @@ export interface VisionResult {
   finishReason: string | null
 }
 
+const VISION_MODEL = import.meta.env.VITE_VISION_MODEL ?? 'glm-4v-flash'
+const VISION_ENDPOINT = '/api/vision/chat/completions'
+const DEFAULT_MAX_TOKENS = VISION_MODEL.startsWith('gemini')
+  ? 8192
+  : VISION_MODEL.startsWith('qwen')
+    ? 4096
+    : 1024
+
 /**
- * 智谱 GLM-4V 视觉模型客户端：请求发给本地 /api/zhipu，
- * 由 vite dev server 代理转发并注入密钥，密钥不进前端代码包。
+ * 视觉识谱客户端：请求发给本地 /api/vision，
+ * 由 vite dev server 按 VISION_PROVIDER 转发到对应厂商并注入密钥。
+ * 模型/厂商通过 .env 切换，无需改代码。
  */
 export async function visionChat(
   prompt: string,
@@ -21,12 +30,12 @@ export async function visionChat(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120000)
   try {
-    const res = await fetch('/api/zhipu/chat/completions', {
+    const res = await fetch(VISION_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'glm-4v-flash',
+        model: VISION_MODEL,
         messages: [
           {
             role: 'user',
@@ -37,17 +46,17 @@ export async function visionChat(
           },
         ],
         temperature: 0.1,
-        max_tokens: options.maxTokens ?? 1024,
+        max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
       }),
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      throw new LlmError(`智谱请求失败（${res.status}）：${text.slice(0, 200)}`)
+      throw new LlmError(`识谱服务请求失败（${res.status}）：${text.slice(0, 200)}`)
     }
-    const data = (await res.json()) as ZhipuChatResponse
+    const data = (await res.json()) as ChatResponse
     const choice = data.choices?.[0]
     const content = choice?.message?.content
-    if (!content) throw new LlmError('智谱返回内容为空')
+    if (!content) throw new LlmError('识谱服务返回内容为空')
     return { content, finishReason: choice?.finish_reason ?? null }
   } catch (err) {
     if (err instanceof LlmError) throw err
