@@ -8,6 +8,10 @@ import { musicxmlToSong } from './musicxml.mjs'
 const AUDIVERIS =
   process.env.AUDIVERIS_BIN ??
   `${process.env.HOME}/bin/Audiveris.app/Contents/MacOS/Audiveris`
+const REALESRGAN =
+  process.env.REALESRGAN_BIN ?? `${process.env.HOME}/bin/realesrgan/realesrgan-ncnn-vulkan`
+const REALESRGAN_MODELS =
+  process.env.REALESRGAN_MODELS ?? `${process.env.HOME}/bin/realesrgan/models`
 const PORT = Number(process.env.OMR_PORT ?? 5175)
 
 let queue = Promise.resolve()
@@ -40,16 +44,69 @@ function friendlyError(message) {
   return message || 'OMR 识别失败'
 }
 
+function isLowQuality(song) {
+  const uniquePitches = new Set(song.notes.map(n => n.midi)).size
+  return song.notes.length < 10 || uniquePitches < 4
+}
+
+async function runAudiveris(inputPath, parentDir) {
+  const stamp = Math.random().toString(36).slice(2, 6)
+  const outDir = join(parentDir, `out-${stamp}`)
+  await mkdir(outDir, { recursive: true })
+  await run(AUDIVERIS, ['-batch', '-transcribe', '-export', '-output', outDir, '--', inputPath])
+  const mxlFiles = (await readdir(outDir)).filter(f => f.endsWith('.mxl'))
+  if (mxlFiles.length === 0) {
+    throw new Error('NO_OUTPUT')
+  }
+  const xmlDir = join(parentDir, `xml-${stamp}`)
+  await run('unzip', ['-o', join(outDir, mxlFiles[0]), '-d', xmlDir])
+  const xmlFiles = (await readdir(xmlDir)).filter(
+    f => f.endsWith('.xml') && !f.startsWith('META'),
+  )
+  if (xmlFiles.length === 0) throw new Error('NO_OUTPUT')
+  const xml = await readFile(join(xmlDir, xmlFiles[0]), 'utf8')
+  return musicxmlToSong(xml, 'score')
+}
+
+async function superResolve(inputPath, parentDir) {
+  const outPath = join(parentDir, 'sr.png')
+  const args = [
+    '-i', inputPath, '-o', outPath,
+    '-n', 'realesrgan-x4plus', '-s', '4',
+    '-m', REALESRGAN_MODELS,
+  ]
+  try {
+    await run(REALESRGAN, args)
+  } catch (err) {
+    if (/vulkan|gpu|device/i.test(err.stderr ?? '')) {
+      await run(REALESRGAN, [...args, '-g', 'cpu'])
+    } else {
+      throw err
+    }
+  }
+  // 超分后仍偏小则补放大到引擎需要的分辨率
+  const info = await run('sips', ['-g', 'pixelHeight', outPath])
+  const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+  if (h > 0 && h < 2800) {
+    const upPath = join(parentDir, 'sr-up.png')
+    await run('sips', ['-s', 'format', 'png', '--resampleHeight', '2800', outPath, '--out', upPath])
+    return upPath
+  }
+  return outPath
+}
+
 async function handleOmr(bytes, fileName) {
   const dir = await mkdtemp(join(tmpdir(), 'omr-'))
   try {
     const ext = extname(fileName).toLowerCase() || '.pdf'
-    let inputPath = join(dir, `input${ext}`)
-    await writeFile(inputPath, bytes)
+    const originalPath = join(dir, `input${ext}`)
+    await writeFile(originalPath, bytes)
+    const isRaster = /\.(jpe?g|png|gif|bmp|tiff?)$/i.test(ext)
 
-    // 栅格图片：统一转 PNG 去 JPEG 伪影；分辨率不足自动放大（Audiveris 需要约 300DPI）
-    if (/\.(jpe?g|png|gif|bmp|tiff?)$/i.test(ext)) {
-      const info = await run('sips', ['-g', 'pixelHeight', inputPath])
+    // 栅格图片：统一转 PNG；分辨率不足先放大一次（给引擎第一次机会）
+    let firstPath = originalPath
+    if (isRaster) {
+      const info = await run('sips', ['-g', 'pixelHeight', originalPath])
       const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
       let target = h
       if (h > 0 && h < 2800) target = Math.min(4 * h, 3000)
@@ -57,30 +114,41 @@ async function handleOmr(bytes, fileName) {
       await run('sips', [
         '-s', 'format', 'png',
         '--resampleHeight', String(Math.max(h, target)),
-        inputPath, '--out', pngPath,
+        originalPath, '--out', pngPath,
       ])
-      inputPath = pngPath
+      firstPath = pngPath
     }
 
-    const outDir = join(dir, 'out')
-    await mkdir(outDir, { recursive: true })
-    await run(AUDIVERIS, ['-batch', '-transcribe', '-export', '-output', outDir, '--', inputPath])
-    const mxlFiles = (await readdir(outDir)).filter(f => f.endsWith('.mxl'))
-    if (mxlFiles.length === 0) {
-      throw new Error('OMR 引擎没有产出乐谱（图片可能不够清晰或不是标准五线谱）')
+    let song = null
+    let failed = false
+    try {
+      song = await runAudiveris(firstPath, dir)
+    } catch (err) {
+      if (!isRaster) throw err
+      failed = true
     }
-    const xmlDir = join(dir, 'xml')
-    await run('unzip', ['-o', join(outDir, mxlFiles[0]), '-d', xmlDir])
-    const xmlFiles = (await readdir(xmlDir)).filter(
-      f => f.endsWith('.xml') && !f.startsWith('META'),
-    )
-    if (xmlFiles.length === 0) throw new Error('MusicXML 包内容异常')
-    const xml = await readFile(join(xmlDir, xmlFiles[0]), 'utf8')
-    const song = musicxmlToSong(xml, fileName.replace(/\.[^.]+$/, ''))
 
-    // 结果质量把关：整页乐谱只认出几个音、或音高几乎没有变化 → 必是垃圾结果
-    const uniquePitches = new Set(song.notes.map(n => n.midi)).size
-    if (song.notes.length < 10 || uniquePitches < 4) {
+    // 首轮失败或结果可疑（且是栅格图、原始尺寸在超分可救范围）→ AI 超分辨率后重试
+    const srEligible = isRaster && (failed || (song !== null && isLowQuality(song)))
+    if (srEligible) {
+      const info = await run('sips', ['-g', 'pixelHeight', originalPath])
+      const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+      if (h > 0 && h < 2200) {
+        const srPath = await superResolve(originalPath, dir)
+        try {
+          const song2 = await runAudiveris(srPath, dir)
+          if (!isLowQuality(song2)) return song2
+          if (song === null || song2.notes.length > song.notes.length) song = song2
+        } catch {
+          // 超分后仍失败，沿用首轮结果
+        }
+      }
+    }
+
+    if (song === null) {
+      throw new Error(friendlyError('OMR 引擎没有产出乐谱（图片可能不够清晰或不是标准五线谱）'))
+    }
+    if (isLowQuality(song)) {
       return { ...song, lowQuality: true }
     }
     return song
@@ -124,4 +192,5 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`OMR sidecard: http://localhost:${PORT}`)
   console.log(`Audiveris: ${AUDIVERIS}`)
+  console.log(`Real-ESRGAN: ${REALESRGAN}`)
 })
