@@ -1,25 +1,5 @@
 @import "tailwindcss";
-
-/* ---------- 设计令牌：极简外壳 ----------
- * 底色近纯黑、强调色仅保留琥珀（brand）、文本克制
- * 画布内部的发光与粒子由 FallingNotes 自行渲染
- */
-@theme {
-  --color-base: #0a0a0b;
-  --color-surface: #111114;
-  --color-raised: #18181c;
-  --color-border-subtle: #232328;
-  --color-border-strong: #2e2e34;
-  --color-primary: #ededee;
-  --color-secondary: #8b8b95;
-  --color-muted: #5a5a63;
-  --color-accent: #f59e0b;
-  --color-accent-strong: #fbbf24;
-  --color-hit: #22c55e;
-  --color-wrong: #ef4444;
-  --color-miss: #fb923c;
-  --color-info: #38bdf8;
-}
+@import "./styles/tokens.css";
 
 html,
 body,
@@ -28,7 +8,8 @@ body,
 }
 
 body {
-  @apply bg-base text-primary antialiased;
+  @apply bg-base text-primary font-sans antialiased;
+  text-underline-offset: 3px;
 }
 
 /* ---------- 页面切换：200ms 渐入 + 上移 8px ---------- */

@@ -1,0 +1,83 @@
+/* ============================================================
+ * 设计令牌：专业音乐软件风
+ * 本文件是全站唯一样式源头，页面样式只允许引用这里定义的值。
+ *
+ * 色板   ：背景四层 / 边框两级 / 文字三级 / 品牌琥珀 / 语义色
+ * 字体   ：系统无衬线（中文 PingFang SC 优先）+ 等宽数字
+ * 字阶   ：display 48 / h1 36 / h2 28 / h3 20 / body 16 / caption 13 / micro 11
+ * 间距   ：4px 基数网格（Tailwind 默认刻度）
+ * 圆角   ：sm 6 / md 10 / lg 14 / xl 20 / pill 999
+ * 动效   ：fast 120ms / base 200ms / slow 300ms；ease-soft 缓出曲线
+ * ============================================================ */
+
+@theme {
+  /* ---------- 背景四层 ---------- */
+  --color-base: #0a0a0b;
+  --color-surface: #101013;
+  --color-raised: #17171b;
+  --color-raised-2: #1e1e24;
+
+  /* ---------- 边框两级 ---------- */
+  --color-border-subtle: #232329;
+  --color-border-strong: #31313a;
+
+  /* ---------- 文字三级 ---------- */
+  --color-primary: #f0f0f2;
+  --color-secondary: #9a9aa6;
+  --color-muted: #5f5f6a;
+
+  /* ---------- 品牌强调（琥珀聚光灯） ---------- */
+  --color-accent: #f59e0b;
+  --color-accent-strong: #fbbf24;
+  --color-accent-dim: #f59e0b26;
+
+  /* ---------- 语义色 ---------- */
+  --color-hit: #22c55e;
+  --color-wrong: #ef4444;
+  --color-miss: #fb923c;
+  --color-info: #38bdf8;
+
+  /* ---------- 字体族 ---------- */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --font-mono:
+    'SF Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* ---------- 字阶 ---------- */
+  --text-display: 3rem;
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.022em;
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.12;
+  --text-h1--letter-spacing: -0.018em;
+  --text-h2: 1.75rem;
+  --text-h2--line-height: 1.2;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.35;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.65;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.5;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--letter-spacing: 0.14em;
+
+  /* ---------- 圆角 ---------- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+
+  /* ---------- 阴影 ---------- */
+  --shadow-panel: 0 8px 28px rgb(0 0 0 / 0.42);
+  --shadow-key-press: inset 0 2px 6px rgb(0 0 0 / 0.28);
+}
+
+/* ---------- 动效令牌（非 Tailwind，供组件内引用） ---------- */
+:root {
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
