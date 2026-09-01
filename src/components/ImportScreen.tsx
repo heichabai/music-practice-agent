@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { importMidiFile } from '../game/midiImport'
 import { visionChat } from '../ai/visionClient'
 import { SHEET_PROMPT, parseSheetResponse, mergePageDrafts, type SheetDraft } from '../ai/sheetPrompts'
-import { pdfToImageDataUrls, MAX_PDF_PAGES } from '../ai/pdfPages'
+import { pdfToImageDataUrls, splitImageDataUrl, MAX_PDF_PAGES } from '../ai/pdfPages'
 import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
 
@@ -36,6 +36,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
   const midiInputRef = useRef<HTMLInputElement | null>(null)
 
   const finishDraft = (draft: SheetDraft, pages: number) => {
+    const truncationHint = draft.salvaged ? '；识别输出曾被截断，后半段请重点核对' : ''
     onDraft(
       {
         id: `img-${Date.now().toString(36)}`,
@@ -44,32 +45,77 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         notes: draft.notes,
       },
       'image',
-      pages > 1
-        ? `AI 识别 ${pages} 页共 ${draft.notes.length} 个音（按小节自动衔接），请试听并校对后保存`
-        : `AI 识别出 ${draft.notes.length} 个音，请试听并校对后保存`,
+      (pages > 1
+        ? `AI 识别 ${pages} 页共 ${draft.notes.length} 个音（按小节自动衔接）`
+        : `AI 识别出 ${draft.notes.length} 个音`) +
+        truncationHint +
+        '，请试听并校对后保存',
     )
+  }
+
+  const recognizeOnce = async (dataUrl: string, sourceName: string, allowEmpty: boolean) => {
+    const { content, finishReason } = await visionChat(SHEET_PROMPT, dataUrl)
+    return parseSheetResponse(content, sourceName, { allowEmpty, finishReason })
+  }
+
+  const recognizeWithSplit = async (
+    dataUrl: string,
+    sourceName: string,
+    allowEmpty: boolean,
+  ): Promise<SheetDraft> => {
+    const first = await recognizeOnce(dataUrl, sourceName, allowEmpty)
+    if (!first.salvaged) return first
+    for (const parts of [2, 4]) {
+      setProgress(`识别输出被截断，正在分 ${parts} 段重新识别…`)
+      const strips = await splitImageDataUrl(dataUrl, parts)
+      const drafts: SheetDraft[] = []
+      for (const strip of strips) {
+        try {
+          drafts.push(await recognizeOnce(strip, sourceName, true))
+        } catch {
+          // 跳过识别失败的片段
+        }
+      }
+      if (!drafts.some(d => d.notes.length > 0)) continue
+      const merged = mergePageDrafts(drafts)
+      if (drafts.every(d => !d.salvaged)) return merged
+      if (parts === 4) return { ...merged, salvaged: true }
+    }
+    return first
   }
 
   const recognizeImage = async (file: File) => {
     const dataUrl = await compressImage(file)
-    const raw = await visionChat(SHEET_PROMPT, dataUrl)
-    const draft = parseSheetResponse(raw, file.name.replace(/\.[^.]+$/, ''))
-    finishDraft(draft, 1)
+    const sourceName = file.name.replace(/\.[^.]+$/, '')
+    try {
+      return await recognizeWithSplit(dataUrl, sourceName, false)
+    } catch {
+      return await recognizeWithSplit(dataUrl, sourceName, false)
+    }
   }
 
-  const recognizePdf = async (file: File) => {
+  const recognizePdf = async (file: File): Promise<{ draft: SheetDraft; pages: number }> => {
     const buffer = await file.arrayBuffer()
     const pages = await pdfToImageDataUrls(buffer)
+    const sourceName = file.name.replace(/\.[^.]+$/, '')
     const drafts: SheetDraft[] = []
+    let skipped = 0
     for (let i = 0; i < pages.length; i++) {
       setProgress(`正在识别第 ${i + 1}/${pages.length} 页…`)
-      const raw = await visionChat(SHEET_PROMPT, pages[i])
-      drafts.push(
-        parseSheetResponse(raw, file.name.replace(/\.[^.]+$/, ''), { allowEmpty: true }),
-      )
+      try {
+        drafts.push(await recognizeWithSplit(pages[i], sourceName, true))
+      } catch {
+        try {
+          drafts.push(await recognizeWithSplit(pages[i], sourceName, true))
+        } catch {
+          skipped++
+        }
+      }
     }
-    const merged = mergePageDrafts(drafts)
-    finishDraft(merged, pages.length)
+    if (skipped > 0 && drafts.some(d => d.notes.length > 0)) {
+      setProgress(`已跳过 ${skipped} 个识别失败/空白页`)
+    }
+    return { draft: mergePageDrafts(drafts), pages: pages.length }
   }
 
   const handleImage = async (file: File) => {
@@ -79,10 +125,13 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
     try {
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
       if (isPdf) {
-        await recognizePdf(file)
+        setProgress('正在解析 PDF…')
+        const { draft, pages } = await recognizePdf(file)
+        finishDraft(draft, pages)
       } else {
         setProgress('正在识别乐谱…')
-        await recognizeImage(file)
+        const draft = await recognizeImage(file)
+        finishDraft(draft, 1)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

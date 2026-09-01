@@ -1,7 +1,12 @@
 import { LlmError } from './llmClient'
 
 interface ZhipuChatResponse {
-  choices?: Array<{ message?: { content?: string } }>
+  choices?: Array<{ message?: { content?: string }; finish_reason?: string }>
+}
+
+export interface VisionResult {
+  content: string
+  finishReason: string | null
 }
 
 /**
@@ -11,10 +16,10 @@ interface ZhipuChatResponse {
 export async function visionChat(
   prompt: string,
   imageDataUrl: string,
-  options: { timeoutMs?: number } = {},
-): Promise<string> {
+  options: { timeoutMs?: number; maxTokens?: number } = {},
+): Promise<VisionResult> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 90000)
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120000)
   try {
     const res = await fetch('/api/zhipu/chat/completions', {
       method: 'POST',
@@ -32,6 +37,7 @@ export async function visionChat(
           },
         ],
         temperature: 0.1,
+        max_tokens: options.maxTokens ?? 1024,
       }),
     })
     if (!res.ok) {
@@ -39,9 +45,10 @@ export async function visionChat(
       throw new LlmError(`智谱请求失败（${res.status}）：${text.slice(0, 200)}`)
     }
     const data = (await res.json()) as ZhipuChatResponse
-    const content = data.choices?.[0]?.message?.content
+    const choice = data.choices?.[0]
+    const content = choice?.message?.content
     if (!content) throw new LlmError('智谱返回内容为空')
-    return content
+    return { content, finishReason: choice?.finish_reason ?? null }
   } catch (err) {
     if (err instanceof LlmError) throw err
     if (err instanceof DOMException && err.name === 'AbortError') {

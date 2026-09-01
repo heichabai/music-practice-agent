@@ -2,6 +2,31 @@ export const MAX_PDF_PAGES = 8
 
 const MAX_EDGE = 1568
 
+/** 把图片按竖条切分（带少量重叠），用于识谱输出截断时的分片重试 */
+export async function splitImageDataUrl(
+  dataUrl: string,
+  parts: number,
+  overlapRatio = 0.08,
+): Promise<string[]> {
+  const img = await createImageBitmap(await (await fetch(dataUrl)).blob())
+  const width = Math.floor(img.width / parts * (1 + overlapRatio * (parts - 1)))
+  const stride = Math.floor(img.width / parts) - Math.floor(img.width * overlapRatio / parts)
+  const strips: string[] = []
+  for (let i = 0; i < parts; i++) {
+    const x = Math.min(i * stride, img.width - width)
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = img.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('无法创建画布')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, img.height)
+    ctx.drawImage(img, x, 0, width, img.height, 0, 0, width, img.height)
+    strips.push(canvas.toDataURL('image/jpeg', 0.85))
+  }
+  return strips
+}
+
 type PdfjsModule = typeof import('pdfjs-dist')
 
 async function loadPdfjs(): Promise<PdfjsModule> {
