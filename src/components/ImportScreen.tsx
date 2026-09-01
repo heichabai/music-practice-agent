@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { importMidiFile } from '../game/midiImport'
 import { visionChat } from '../ai/visionClient'
-import { SHEET_PROMPT, parseSheetResponse } from '../ai/sheetPrompts'
+import { SHEET_PROMPT, parseSheetResponse, mergePageDrafts, type SheetDraft } from '../ai/sheetPrompts'
+import { pdfToImageDataUrls, MAX_PDF_PAGES } from '../ai/pdfPages'
 import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
 
@@ -29,31 +30,65 @@ async function compressImage(file: File): Promise<string> {
 
 export function ImportScreen({ onDraft, onCancel }: Props) {
   const [busy, setBusy] = useState<'image' | 'midi' | null>(null)
+  const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const midiInputRef = useRef<HTMLInputElement | null>(null)
 
+  const finishDraft = (draft: SheetDraft, pages: number) => {
+    onDraft(
+      {
+        id: `img-${Date.now().toString(36)}`,
+        name: draft.name,
+        bpm: draft.bpm,
+        notes: draft.notes,
+      },
+      'image',
+      pages > 1
+        ? `AI 识别 ${pages} 页共 ${draft.notes.length} 个音（按小节自动衔接），请试听并校对后保存`
+        : `AI 识别出 ${draft.notes.length} 个音，请试听并校对后保存`,
+    )
+  }
+
+  const recognizeImage = async (file: File) => {
+    const dataUrl = await compressImage(file)
+    const raw = await visionChat(SHEET_PROMPT, dataUrl)
+    const draft = parseSheetResponse(raw, file.name.replace(/\.[^.]+$/, ''))
+    finishDraft(draft, 1)
+  }
+
+  const recognizePdf = async (file: File) => {
+    const buffer = await file.arrayBuffer()
+    const pages = await pdfToImageDataUrls(buffer)
+    const drafts: SheetDraft[] = []
+    for (let i = 0; i < pages.length; i++) {
+      setProgress(`正在识别第 ${i + 1}/${pages.length} 页…`)
+      const raw = await visionChat(SHEET_PROMPT, pages[i])
+      drafts.push(
+        parseSheetResponse(raw, file.name.replace(/\.[^.]+$/, ''), { allowEmpty: true }),
+      )
+    }
+    const merged = mergePageDrafts(drafts)
+    finishDraft(merged, pages.length)
+  }
+
   const handleImage = async (file: File) => {
     setBusy('image')
     setError('')
+    setProgress('')
     try {
-      const dataUrl = await compressImage(file)
-      const raw = await visionChat(SHEET_PROMPT, dataUrl)
-      const draft = parseSheetResponse(raw, file.name.replace(/\.[^.]+$/, ''))
-      onDraft(
-        {
-          id: `img-${Date.now().toString(36)}`,
-          name: draft.name,
-          bpm: draft.bpm,
-          notes: draft.notes,
-        },
-        'image',
-        `AI 识别出 ${draft.notes.length} 个音，请试听并校对后保存`,
-      )
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+      if (isPdf) {
+        await recognizePdf(file)
+      } else {
+        setProgress('正在识别乐谱…')
+        await recognizeImage(file)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(null)
+      setProgress('')
       if (imageInputRef.current) imageInputRef.current.value = ''
     }
   }
@@ -93,14 +128,15 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
 
         <div className="mt-10 space-y-6">
           <div className="rounded-xl border border-border-subtle p-6">
-            <p className="text-sm font-medium text-primary">乐谱图片 · AI 识别</p>
+            <p className="text-sm font-medium text-primary">乐谱图片 / PDF · AI 识别</p>
             <p className="mt-1 text-xs text-muted">
-              支持五线谱截图或清晰照片，识别单旋律；建议使用截图，斜拍糊照准确率会下降
+              支持五线谱图片（截图或清晰照片）与 PDF 乐谱（最多识别前 {MAX_PDF_PAGES} 页，按小节自动衔接）；
+              识别单旋律，建议使用清晰文件，糊照准确率会下降
             </p>
             <input
               ref={imageInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.pdf,application/pdf"
               className="hidden"
               onChange={e => {
                 const file = e.target.files?.[0]
@@ -111,7 +147,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
               className={`mt-4 ${busy !== null ? 'pointer-events-none opacity-40' : ''}`}
               onClick={() => imageInputRef.current?.click()}
             >
-              {busy === 'image' ? '正在识别乐谱…' : '选择乐谱图片'}
+              {busy === 'image' ? progress || '正在识别乐谱…' : '选择乐谱图片或 PDF'}
             </PrimaryButton>
           </div>
 

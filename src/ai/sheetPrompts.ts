@@ -24,7 +24,11 @@ export interface SheetDraft {
 }
 
 /** 解析并规范化模型返回的 JSON，坏数据直接抛错 */
-export function parseSheetResponse(raw: string, sourceName: string): SheetDraft {
+export function parseSheetResponse(
+  raw: string,
+  sourceName: string,
+  opts: { allowEmpty?: boolean } = {},
+): SheetDraft {
   let text = raw.trim()
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
   if (fence) text = fence[1]
@@ -41,6 +45,7 @@ export function parseSheetResponse(raw: string, sourceName: string): SheetDraft 
   }
   const obj = data as Partial<{ name: unknown; bpm: unknown; notes: unknown }>
   if (!Array.isArray(obj.notes) || obj.notes.length === 0) {
+    if (opts.allowEmpty) return { name: sourceName, bpm: 100, notes: [] }
     throw new LlmError('没有识别出音符，请确认图片是乐谱')
   }
 
@@ -61,6 +66,7 @@ export function parseSheetResponse(raw: string, sourceName: string): SheetDraft 
     notes.push({ midi, time, duration })
   }
   if (notes.length === 0) {
+    if (opts.allowEmpty) return { name: sourceName, bpm: 100, notes: [] }
     throw new LlmError('识别出的音符全部无效，请换一张更清晰的图片')
   }
   notes.sort((a, b) => a.time - b.time)
@@ -71,4 +77,25 @@ export function parseSheetResponse(raw: string, sourceName: string): SheetDraft 
     typeof obj.name === 'string' && obj.name.trim() !== '' ? obj.name.trim() : sourceName
 
   return { name, bpm, notes }
+}
+
+/** 合并多页识别结果：每页时间自动顺延到上一页结束后的下一小节 */
+export function mergePageDrafts(drafts: SheetDraft[]): SheetDraft {
+  const withNotes = drafts.filter(d => d.notes.length > 0)
+  if (withNotes.length === 0) {
+    throw new LlmError('所有页面都没有识别出音符，请确认文件是乐谱')
+  }
+  if (withNotes.length === 1) return withNotes[0]
+  const notes: Note[] = []
+  let offset = 0
+  for (const draft of withNotes) {
+    for (const n of draft.notes) {
+      notes.push({ ...n, time: n.time + offset })
+    }
+    const maxEnd = draft.notes.reduce((m, n) => Math.max(m, n.time + n.duration), 0)
+    offset += Math.ceil((maxEnd + 0.001) / 4) * 4
+  }
+  notes.sort((a, b) => a.time - b.time)
+  const bpm = withNotes.map(d => d.bpm).sort((a, b) => b - a)[0]
+  return { name: withNotes[0].name, bpm, notes }
 }
