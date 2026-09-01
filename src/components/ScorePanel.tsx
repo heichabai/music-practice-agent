@@ -17,7 +17,7 @@ const STRIP_H = 108
 export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null)
   const hostRef = useRef<HTMLDivElement | null>(null)
-  const [tab, setTab] = useState<'notation' | 'image'>(imageUrl ? 'image' : 'notation')
+  const [tab, setTab] = useState<'notation' | 'image'>('notation')
   const noteBeatsRef = useRef<number[]>([])
   const elemsRef = useRef<Element[]>([])
   const translateRef = useRef(0)
@@ -101,18 +101,22 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   }, [engineRef])
 
   return (
-    <div className="relative border-b border-border-subtle">
+    <div className="score-strip relative border-b border-border-subtle bg-raised/40">
       {imageUrl !== undefined && (
-        <div className="absolute right-12 top-1.5 z-10 flex overflow-hidden rounded-full border border-slate-300 bg-white/85 text-[10px] text-slate-600">
+        <div className="absolute right-12 top-1.5 z-10 flex overflow-hidden rounded-full border border-border-strong text-[10px]">
           <button
             onClick={() => setTab('notation')}
-            className={`px-2.5 py-0.5 ${tab === 'notation' ? 'bg-slate-800 text-white' : ''}`}
+            className={`px-2.5 py-0.5 transition-colors ${
+              tab === 'notation' ? 'bg-primary text-base' : 'text-secondary hover:text-primary'
+            }`}
           >
             五线谱
           </button>
           <button
             onClick={() => setTab('image')}
-            className={`px-2.5 py-0.5 ${tab === 'image' ? 'bg-slate-800 text-white' : ''}`}
+            className={`px-2.5 py-0.5 transition-colors ${
+              tab === 'image' ? 'bg-primary text-base' : 'text-secondary hover:text-primary'
+            }`}
           >
             原图
           </button>
@@ -131,11 +135,11 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
           className="h-full transition-transform duration-300 will-change-transform"
           style={{ display: tab === 'notation' ? 'inline-block' : 'none' }}
         >
-          <div ref={hostRef} className="h-full bg-white" />
+          <div ref={hostRef} className="h-full" />
         </div>
         {tab === 'image' && imageUrl !== undefined && (
-          <div className="h-full overflow-x-auto bg-white">
-            <img src={imageUrl} alt={song.name} className="h-full w-auto" />
+          <div className="flex h-full items-center justify-center overflow-x-auto px-4">
+            <img src={imageUrl} alt={song.name} className="max-h-full w-auto rounded" />
           </div>
         )}
       </div>

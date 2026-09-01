@@ -82,9 +82,28 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- 乐谱条 ---------- */
-.score-svg .abcjs-note.score-current path {
-  fill: #d97706 !important;
+/* ---------- 乐谱条（暗色主题） ---------- */
+.score-strip svg path {
+  stroke: #3f3f49;
+}
+.score-strip svg text {
+  fill: #8b8b95;
+}
+.score-strip svg .abcjs-note path[stroke] {
+  stroke: #6a6a75;
+  fill: none;
+}
+.score-strip svg .abcjs-note path:not([stroke]) {
+  fill: #d4d4dc;
+}
+.score-strip svg .abcjs-rest path {
+  fill: #5a5a63;
+}
+.score-strip .abcjs-note.score-current path:not([stroke]) {
+  fill: var(--color-accent) !important;
+}
+.score-strip .abcjs-note.score-current path[stroke] {
+  stroke: var(--color-accent) !important;
 }
 
 /* ---------- prefers-reduced-motion ---------- */
