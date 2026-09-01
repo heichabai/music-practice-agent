@@ -281,7 +281,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         </p>
 
         <div className="mt-6 flex items-center gap-2 text-micro text-muted">
-          <span className="rounded-full bg-raised-2 px-2.5 py-1 text-primary">识别 / 导入</span>
+          <span className="rounded-full bg-raised-2 px-2.5 py-1 text-primary">导入</span>
           <IconChevronRight className="h-3 w-3 text-muted" />
           <span className="rounded-full bg-raised-2 px-2.5 py-1">校对</span>
           <IconChevronRight className="h-3 w-3 text-muted" />
