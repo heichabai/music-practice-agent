@@ -12,7 +12,7 @@ interface Props {
   onClose: () => void
 }
 
-const STRIP_H = 108
+const STRIP_H = 132
 
 export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null)
@@ -41,15 +41,31 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    host.innerHTML = ''
     const { abc, noteBeats } = songToAbc(song)
     noteBeatsRef.current = noteBeats
-    abcjs.renderAbc(host, abc, {
-      add_classes: true,
-      staffwidth: Math.max(1400, song.notes.length * 60),
-      paddingleft: 0,
-      paddingright: 0,
-    })
+
+    const renderWith = (width: number) => {
+      host.innerHTML = ''
+      abcjs.renderAbc(host, abc, {
+        add_classes: true,
+        staffwidth: width,
+        paddingleft: 0,
+        paddingright: 0,
+        paddingtop: 0,
+        paddingbottom: 0,
+      })
+    }
+
+    // 用谱线条数（而非总高度）判断折行，折了就加宽重排，保证单行
+    let width = Math.max(1600, song.notes.length * 80)
+    renderWith(width)
+    let tries = 0
+    while (host.querySelectorAll('.abcjs-staff').length > 1 && tries < 4) {
+      width = Math.ceil(width * 1.8)
+      renderWith(width)
+      tries++
+    }
+
     elemsRef.current = Array.from(host.querySelectorAll('.abcjs-note'))
     translateRef.current = 0
     sizedRef.current = false

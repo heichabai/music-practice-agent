@@ -73,12 +73,11 @@ export function songToAbc(song: Song): AbcResult {
     if (bar > lastBar) {
       body += '| '
       lastBar = bar
-      if (bar % 4 === 0) body += '\n'
     }
   }
   body += '|]'
 
-  const name = song.name.replace(/[:\r\n]/g, ' ').trim() || '未命名'
-  const abc = `X:1\nT:${name}\nM:4/4\nL:1/4\nQ:${song.bpm}\nK:C\n${body}\n`
+  // 不输出曲名(T:)和速度(Q:)：谱面条场景下它们是竖向装饰行，浪费高度
+  const abc = `X:1\nM:4/4\nL:1/4\nK:C\n${body}\n`
   return { abc, noteBeats }
 }
