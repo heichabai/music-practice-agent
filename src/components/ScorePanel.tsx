@@ -22,6 +22,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const elemsRef = useRef<Element[]>([])
   const translateRef = useRef(0)
   const sizedRef = useRef(false)
+  const pxRef = useRef<number[]>([])
 
   const sizeSvg = () => {
     const host = hostRef.current
@@ -90,6 +91,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     elemsRef.current = Array.from(host.querySelectorAll('.abcjs-note'))
     translateRef.current = 0
     sizedRef.current = false
+    pxRef.current = []
     sizeSvg()
 
     // 字体加载会改变字形布局：字体就绪后重渲染并重测量（异步竞态的真正源头）
@@ -123,34 +125,52 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       const engine = engineRef.current
       if (engine) {
         const beats = noteBeatsRef.current
+        const elems = elemsRef.current
+
+        // 初次或曲目变化后：transform 归零，测量每个音符元素的固有 x 坐标（只测一次）
+        if (pxRef.current.length !== beats.length && beats.length > 0) {
+          const inner = innerRef.current
+          if (inner !== null) {
+            inner.style.transform = 'translateX(0px)'
+            translateRef.current = 0
+            const innerRect = inner.getBoundingClientRect()
+            pxRef.current = elems.map(e => e.getBoundingClientRect().left - innerRect.left)
+          }
+        }
+
         let idx = -1
         for (let i = 0; i < beats.length; i++) {
           if (beats[i] <= engine.songTime + 0.05) idx = i
           else break
         }
         if (idx !== lastIdx) {
-          const elems = elemsRef.current
           if (lastIdx >= 0 && elems[lastIdx]) elems[lastIdx].classList.remove('score-current')
-          const inner = innerRef.current
-          if (idx >= 0 && elems[idx]) {
-            elems[idx].classList.add('score-current')
-            if (inner !== null) {
-              const outer = inner.parentElement
-              if (outer !== null) {
-                const innerRect = inner.getBoundingClientRect()
-                const elemRect = elems[idx].getBoundingClientRect()
-                const intrinsicX = elemRect.left - innerRect.left + translateRef.current
-                const maxScroll = Math.max(0, inner.scrollWidth - outer.clientWidth)
-                const target = Math.min(
-                  maxScroll,
-                  Math.max(0, intrinsicX - outer.clientWidth * 0.35),
-                )
-                translateRef.current = target
-                inner.style.transform = `translateX(${-target}px)`
-              }
-            }
-          }
+          if (idx >= 0 && elems[idx]) elems[idx].classList.add('score-current')
           lastIdx = idx
+        }
+
+        // 连续插值滚动：在相邻音符位置之间按 songTime 线性滑行，等待时静止，杜绝跳变
+        const pxs = pxRef.current
+        const inner = innerRef.current
+        if (pxs.length === beats.length && beats.length > 0 && inner !== null) {
+          const t = engine.songTime
+          let k = 0
+          while (k + 1 < beats.length && beats[k + 1] <= t) k++
+          let x = pxs[k] ?? 0
+          if (k + 1 < beats.length && beats[k + 1] > beats[k]) {
+            const ratio = Math.min(
+              1,
+              Math.max(0, (t - beats[k]) / (beats[k + 1] - beats[k])),
+            )
+            x = (pxs[k] ?? 0) + ((pxs[k + 1] ?? 0) - (pxs[k] ?? 0)) * ratio
+          }
+          const outer = inner.parentElement
+          if (outer !== null) {
+            const maxScroll = Math.max(0, inner.scrollWidth - outer.clientWidth)
+            const target = Math.min(maxScroll, Math.max(0, x - outer.clientWidth * 0.35))
+            translateRef.current = target
+            inner.style.transform = `translateX(${-target}px)`
+          }
         }
       }
       raf = requestAnimationFrame(tick)
@@ -195,7 +215,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       <div className="overflow-hidden" style={{ height: STRIP_H }}>
         <div
           ref={innerRef}
-          className="h-full transition-transform duration-300 will-change-transform"
+          className="h-full will-change-transform"
           style={{ display: tab === 'notation' ? 'inline-block' : 'none' }}
         >
           <div ref={hostRef} className="h-full" />
