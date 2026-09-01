@@ -7,6 +7,10 @@
 - **双练习模式**
   - 等待式：弹对才前进，适合认音入门
   - 自由式：连续播放，考察真实节奏与时值
+- **三种乐谱导入**
+  - 本地 OMR（Audiveris 离线引擎）：印刷谱精确识别，准确率高
+  - AI 视觉识谱（通义 qwen3.8）：照片、非标准排版兜底，识别后人工校对
+  - MIDI 直传：100% 精确，多轨道自动取主旋律
 - **实时判定**：音高对错、漏弹、错音、多余按键，逐音反馈
 - **会话报告**：命中率、节奏偏差仪表（抢拍/拖拍）、时值保持、问题音符 TOP5
 - **AI 教练**（DeepSeek 驱动）
@@ -25,12 +29,15 @@ git clone git@github.com:heichabai/music-practice-agent.git
 cd music-practice-agent
 npm install
 
-# 可选：启用 AI 教练（不配置则练习功能不受影响）
+# 可选：启用 AI 教练与 AI 识谱（不配置则练习功能不受影响）
 cp .env.example .env
-# 编辑 .env，填入你的 DeepSeek API Key
+# 编辑 .env，填入 DEEPSEEK_API_KEY（AI 教练）等密钥
 
-npm run dev
+npm run omr   # 终端 1：本地 OMR 识谱服务（印刷谱精确识别，需 ~/bin/Audiveris.app）
+npm run dev   # 终端 2：前端开发服务器
 ```
+
+打开 http://localhost:5173 即可练习。
 
 打开 http://localhost:5173 即可练习。
 
