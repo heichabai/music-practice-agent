@@ -1,14 +1,17 @@
-import * as pdfjsLib from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
-
-const MAX_EDGE = 1568
 export const MAX_PDF_PAGES = 8
 
-/** 将 PDF 每页渲染为 JPEG data URL（最长边不超过 1568px） */
+const MAX_EDGE = 1568
+
+/**
+ * 将 PDF 每页渲染为 JPEG data URL（最长边不超过 1568px）。
+ * pdfjs 按需动态加载，不进主包：老浏览器上仅 PDF 功能不可用，不影响其余功能。
+ */
 export async function pdfToImageDataUrls(buffer: ArrayBuffer): Promise<string[]> {
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+  const pdfjs = await import('pdfjs-dist')
+  const workerModule = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+  pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default
+
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise
   const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES)
   const urls: string[] = []
   for (let i = 1; i <= pageCount; i++) {
