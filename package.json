@@ -27,13 +27,30 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "engine-locals/Audiveris.app", "to": "engine/Audiveris.app" },
-      { "from": "engine-locals/realesrgan", "to": "engine/realesrgan" },
-      { "from": "engine-locals/default-config.json", "to": "default-config.json" }
+      {
+        "from": "engine-locals/Audiveris.app",
+        "to": "engine/Audiveris.app"
+      },
+      {
+        "from": "engine-locals/realesrgan",
+        "to": "engine/realesrgan"
+      },
+      {
+        "from": "engine-locals/default-config.json",
+        "to": "default-config.json"
+      }
     ],
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["arm64"] }],
-      "category": "public.app-category.music"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.music",
+      "icon": "build-assets/icon.icns"
     }
   },
   "dependencies": {
