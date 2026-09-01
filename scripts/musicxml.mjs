@@ -69,16 +69,14 @@ export function musicxmlToSong(xml, fallbackName) {
 
   if (voices.size === 0) throw new Error('MusicXML 中没有可用的音符')
 
-  // 旋律提取：在音符数足够的声部里选平均音高最高的（右手旋律恒高于左手伴奏）
-  const groups = [...voices.values()]
-  const qualified = groups.filter(g => g.notes.length >= 5)
-  const pool = qualified.length > 0 ? qualified : groups
-  const best = pool.reduce((a, b) =>
-    a.sum / a.notes.length >= b.sum / b.notes.length ? a : b,
-  )
+  // 全声部合并：谱面上有什么音符就输出什么（双手谱两个声部都保留）
+  const all = []
+  for (const group of voices.values()) {
+    all.push(...group.notes)
+  }
 
   const seen = new Set()
-  const notes = best.notes
+  const notes = all
     .map(n => ({
       midi: n.midi,
       time: Math.max(0, Math.round(n.onset * 4) / 4),

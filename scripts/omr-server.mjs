@@ -103,20 +103,29 @@ async function handleOmr(bytes, fileName) {
     await writeFile(originalPath, bytes)
     const isRaster = /\.(jpe?g|png|gif|bmp|tiff?)$/i.test(ext)
 
-    // 栅格图片：统一转 PNG；分辨率不足先放大一次（给引擎第一次机会）
+    // 栅格图片：小图（<1000px）AI 超分优先——比 bicubic 放大更能恢复谱线边缘
     let firstPath = originalPath
     if (isRaster) {
       const info = await run('sips', ['-g', 'pixelHeight', originalPath])
       const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
-      let target = h
-      if (h > 0 && h < 2800) target = Math.min(4 * h, 3000)
-      const pngPath = join(dir, 'input-hq.png')
-      await run('sips', [
-        '-s', 'format', 'png',
-        '--resampleHeight', String(Math.max(h, target)),
-        originalPath, '--out', pngPath,
-      ])
-      firstPath = pngPath
+      if (h > 0 && h < 1000) {
+        try {
+          firstPath = await superResolve(originalPath, dir)
+        } catch {
+          // 超分失败退回普通放大
+        }
+      }
+      if (firstPath === originalPath) {
+        let target = h
+        if (h > 0 && h < 2800) target = Math.min(4 * h, 3000)
+        const pngPath = join(dir, 'input-hq.png')
+        await run('sips', [
+          '-s', 'format', 'png',
+          '--resampleHeight', String(Math.max(h, target)),
+          originalPath, '--out', pngPath,
+        ])
+        firstPath = pngPath
+      }
     }
 
     let song = null

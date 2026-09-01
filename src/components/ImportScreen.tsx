@@ -209,7 +209,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
           notes: data.notes,
         },
         'omr',
-        `本地 OMR 精确识别出 ${data.notes.length} 个音，请试听确认后保存`,
+        `本地 OMR 精确识别出 ${data.notes.length} 个音（谱面全部声部，双手谱需双手练习），请试听确认后保存`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
