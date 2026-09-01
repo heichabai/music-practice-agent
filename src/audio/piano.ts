@@ -9,8 +9,16 @@ const SAMPLES: Record<string, string> = {
   A6: 'A6.wav',
 }
 
-// Tone 默认 lookAhead=0.1s（100ms 调度缓冲），练习反馈音必须低延迟
-Tone.getContext().lookAhead = 0.005
+// Tone 默认 lookAhead=0.1s（100ms 调度缓冲），练习反馈音必须低延迟。
+// Tone 内部可能重置该值，所以每次触发前就地重设，保证恒为低延迟。
+const LOW_LATENCY = 0.005
+
+export function enforceLowLatency(): void {
+  const ctx = Tone.getContext()
+  if (ctx.lookAhead !== LOW_LATENCY) ctx.lookAhead = LOW_LATENCY
+}
+
+enforceLowLatency()
 
 let sampler: Tone.Sampler | null = null
 let loading: Promise<Tone.Sampler | null> | null = null
@@ -33,6 +41,7 @@ export function getPiano(): Promise<Tone.Sampler | null> {
       release: 1.2,
       onload: () => {
         sampler = s
+        enforceLowLatency()
         resolve(s)
       },
     }).toDestination()
@@ -51,7 +60,10 @@ export function getPiano(): Promise<Tone.Sampler | null> {
 /** 弹一个音；返回是否真的用了钢琴（否则调用方自行回退） */
 export async function playPianoNote(midi: number, duration = 0.5): Promise<boolean> {
   const piano = await getPiano()
+  enforceLowLatency()
   if (piano === null) return false
-  piano.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), duration)
+  // 显式指定播放时刻，绕过 Tone.now() 的 lookAhead 缓冲（该值会被 Tone 内部重置，不可靠）
+  const when = Tone.getContext().currentTime + LOW_LATENCY
+  piano.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), duration, when)
   return true
 }

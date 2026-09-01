@@ -91,7 +91,7 @@ export default function App() {
         void playPianoNote(midi, 0.45).then(usedPiano => {
           if (!usedPiano && synthRef.current) {
             const freq = Tone.Frequency(midi, 'midi').toFrequency()
-            synthRef.current.triggerAttackRelease(freq, 0.3)
+            synthRef.current.triggerAttackRelease(freq, 0.3, Tone.getContext().currentTime + 0.005)
           }
         })
       } else if (result === 'wrong') {
