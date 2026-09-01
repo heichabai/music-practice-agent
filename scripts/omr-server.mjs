@@ -30,12 +30,38 @@ function run(cmd, args, opts = {}) {
   })
 }
 
+function friendlyError(message) {
+  if (/interline|resolution is too low/i.test(message)) {
+    return '图片分辨率过低，识别不了谱线（请换更清晰/更大的图片，或直接用 PDF）'
+  }
+  if (/no multi-line staves/i.test(message)) {
+    return '图中没有检测到五线谱（请确认是标准五线谱图片）'
+  }
+  return message || 'OMR 识别失败'
+}
+
 async function handleOmr(bytes, fileName) {
   const dir = await mkdtemp(join(tmpdir(), 'omr-'))
   try {
     const ext = extname(fileName).toLowerCase() || '.pdf'
-    const inputPath = join(dir, `input${ext}`)
+    let inputPath = join(dir, `input${ext}`)
     await writeFile(inputPath, bytes)
+
+    // 栅格图片：统一转 PNG 去 JPEG 伪影；分辨率不足自动放大（Audiveris 需要约 300DPI）
+    if (/\.(jpe?g|png|gif|bmp|tiff?)$/i.test(ext)) {
+      const info = await run('sips', ['-g', 'pixelHeight', inputPath])
+      const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+      let target = h
+      if (h > 0 && h < 2800) target = Math.min(4 * h, 3000)
+      const pngPath = join(dir, 'input-hq.png')
+      await run('sips', [
+        '-s', 'format', 'png',
+        '--resampleHeight', String(Math.max(h, target)),
+        inputPath, '--out', pngPath,
+      ])
+      inputPath = pngPath
+    }
+
     const outDir = join(dir, 'out')
     await mkdir(outDir, { recursive: true })
     await run(AUDIVERIS, ['-batch', '-transcribe', '-export', '-output', outDir, '--', inputPath])
@@ -71,9 +97,10 @@ const server = http.createServer((req, res) => {
           res.end(JSON.stringify(song))
         })
         .catch(err => {
-          console.error('[omr] 失败:', err.message)
+          const message = err.stderr || err.message || String(err)
+          console.error('[omr] 失败:', message)
           res.writeHead(500, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: err.stderr || err.message || String(err) }))
+          res.end(JSON.stringify({ error: friendlyError(message) }))
         })
     })
     return
