@@ -47,6 +47,8 @@ export async function visionChat(
         ],
         temperature: 0.1,
         max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+        // qwen 思考型模型不关思考会挂死在复杂图片上
+        ...(VISION_MODEL.startsWith('qwen') ? { enable_thinking: false } : {}),
       }),
     })
     if (!res.ok) {
