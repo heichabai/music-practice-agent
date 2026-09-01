@@ -25,7 +25,9 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
 
   const sizeSvg = () => {
     const svg = hostRef.current?.querySelector('svg')
-    if (!svg || sizedRef.current) return
+    if (!svg) return
+    // 自愈：已 sizing 且 viewBox 仍在就跳过；viewBox 丢失则重做
+    if (sizedRef.current && svg.getAttribute('viewBox') !== null) return
     // getBBox 量出全部已绘制内容（含越界的符干/符尾/加线）的真实边界，viewBox 精确贴合
     let bb: { x: number; y: number; width: number; height: number }
     try {
@@ -38,6 +40,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     const vbW = bb.width + margin * 2
     const vbH = bb.height + margin * 2
     svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
     const scale = STRIP_H / vbH
     svg.style.width = `${vbW * scale}px`
     svg.style.height = `${STRIP_H}px`
@@ -75,6 +78,25 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     translateRef.current = 0
     sizedRef.current = false
     sizeSvg()
+
+    // 字体加载会改变字形布局：字体就绪后重渲染并重测量（异步竞态的真正源头）
+    let cancelled = false
+    if (document.fonts?.ready !== undefined) {
+      void document.fonts.ready.then(() => {
+        if (cancelled) return
+        sizedRef.current = false
+        sizeSvg()
+        // 若自校验失败（viewBox 未落上），再重试一次
+        const svg = hostRef.current?.querySelector('svg')
+        if (svg !== null && svg !== undefined && svg.getAttribute('viewBox') === null) {
+          sizedRef.current = false
+          sizeSvg()
+        }
+      })
+    }
+    return () => {
+      cancelled = true
+    }
   }, [song])
 
   useEffect(() => {
