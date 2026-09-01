@@ -11,11 +11,14 @@ export interface VisionResult {
 
 const VISION_MODEL = import.meta.env.VITE_VISION_MODEL ?? 'glm-4v-flash'
 const VISION_ENDPOINT = '/api/vision/chat/completions'
+const IS_QWEN = VISION_MODEL.startsWith('qwen')
+const THINKING_BUDGET = Number(import.meta.env.VITE_QWEN_THINKING_BUDGET ?? 8192)
 const DEFAULT_MAX_TOKENS = VISION_MODEL.startsWith('gemini')
   ? 8192
-  : VISION_MODEL.startsWith('qwen')
+  : IS_QWEN
     ? 4096
     : 1024
+const DEFAULT_TIMEOUT_MS = IS_QWEN ? 240000 : 120000
 
 /**
  * 视觉识谱客户端：请求发给本地 /api/vision，
@@ -28,7 +31,7 @@ export async function visionChat(
   options: { timeoutMs?: number; maxTokens?: number } = {},
 ): Promise<VisionResult> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120000)
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   try {
     const res = await fetch(VISION_ENDPOINT, {
       method: 'POST',
@@ -47,8 +50,8 @@ export async function visionChat(
         ],
         temperature: 0.1,
         max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
-        // qwen 思考型模型不关思考会挂死在复杂图片上
-        ...(VISION_MODEL.startsWith('qwen') ? { enable_thinking: false } : {}),
+        // qwen 开思考模式读谱显著更准；预算上限防止思考跑飞
+        ...(IS_QWEN ? { enable_thinking: true, thinking_budget: THINKING_BUDGET } : {}),
       }),
     })
     if (!res.ok) {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { importMidiFile } from '../game/midiImport'
 import { visionChat } from '../ai/visionClient'
 import { SHEET_PROMPT, parseSheetResponse, mergePageDrafts, type SheetDraft } from '../ai/sheetPrompts'
@@ -34,6 +34,16 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
   const [error, setError] = useState('')
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const midiInputRef = useRef<HTMLInputElement | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (busy === null) {
+      setElapsed(0)
+      return
+    }
+    const timer = window.setInterval(() => setElapsed(s => s + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [busy])
 
   const finishDraft = (draft: SheetDraft, pages: number) => {
     const truncationHint = draft.salvaged ? '；识别输出曾被截断，后半段请重点核对' : ''
@@ -196,7 +206,9 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
               className={`mt-4 ${busy !== null ? 'pointer-events-none opacity-40' : ''}`}
               onClick={() => imageInputRef.current?.click()}
             >
-              {busy === 'image' ? progress || '正在识别乐谱…' : '选择乐谱图片或 PDF'}
+              {busy === 'image'
+                ? `${progress || '正在识别乐谱…'}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
+                : '选择乐谱图片或 PDF'}
             </PrimaryButton>
           </div>
 
