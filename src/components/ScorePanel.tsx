@@ -47,6 +47,13 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     svg.style.width = `${vbW * scale}px`
     svg.style.height = `${STRIP_H}px`
     svg.style.display = 'block'
+    // 窄于横条的谱面水平居中，宽谱保持左对齐由滚动接管
+    const container = hostRef.current?.parentElement?.parentElement
+    if (container instanceof HTMLElement && innerRef.current) {
+      const w = vbW * scale
+      innerRef.current.style.marginLeft =
+        w < container.clientWidth ? `${Math.round((container.clientWidth - w) / 2)}px` : '0px'
+    }
     sizedRef.current = true
   }
 
@@ -66,8 +73,8 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       })
     }
 
-    // 用谱线条数（而非总高度）判断折行，折了就加宽重排，保证单行
-    let width = Math.max(1600, song.notes.length * 80)
+    // 谱面宽度按音符数自适应密度：短曲紧凑不稀疏，长曲封顶后靠滚动
+    let width = Math.min(1400, Math.max(500, song.notes.length * 90))
     renderWith(width)
     let tries = 0
     while (host.querySelectorAll('.abcjs-staff').length > 1 && tries < 4) {
