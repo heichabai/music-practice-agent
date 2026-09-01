@@ -136,6 +136,7 @@ export default function App() {
       setReport(null)
       try {
         await Tone.start()
+        Tone.getContext().lookAhead = 0.005
         preloadPiano()
         if (!synthRef.current) {
           synthRef.current = new Tone.PolySynth(Tone.Synth, {

@@ -1,13 +1,16 @@
 import * as Tone from 'tone'
 
 const SAMPLES: Record<string, string> = {
-  A1: 'A1.mp3',
-  A2: 'A2.mp3',
-  A3: 'A3.mp3',
-  A4: 'A4.mp3',
-  A5: 'A5.mp3',
-  A6: 'A6.mp3',
+  A1: 'A1.wav',
+  A2: 'A2.wav',
+  A3: 'A3.wav',
+  A4: 'A4.wav',
+  A5: 'A5.wav',
+  A6: 'A6.wav',
 }
+
+// Tone 默认 lookAhead=0.1s（100ms 调度缓冲），练习反馈音必须低延迟
+Tone.getContext().lookAhead = 0.005
 
 let sampler: Tone.Sampler | null = null
 let loading: Promise<Tone.Sampler | null> | null = null
