@@ -24,8 +24,12 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const sizedRef = useRef(false)
 
   const sizeSvg = () => {
-    const svg = hostRef.current?.querySelector('svg')
-    if (!svg) return
+    const host = hostRef.current
+    const svg = host?.querySelector('svg')
+    if (!svg || !host) return
+    // abcjs 会在宿主 div 上写入内联 height/overflow，把按新尺寸渲染的 svg 齐腰裁断 —— 强制清除
+    host.style.height = '100%'
+    host.style.overflow = 'visible'
     // 自愈：已 sizing 且 viewBox 仍在就跳过；viewBox 丢失则重做
     if (sizedRef.current && svg.getAttribute('viewBox') !== null) return
     // getBBox 量出全部已绘制内容（含越界的符干/符尾/加线）的真实边界，viewBox 精确贴合
