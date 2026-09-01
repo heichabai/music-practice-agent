@@ -76,7 +76,14 @@ async function handleOmr(bytes, fileName) {
     )
     if (xmlFiles.length === 0) throw new Error('MusicXML 包内容异常')
     const xml = await readFile(join(xmlDir, xmlFiles[0]), 'utf8')
-    return musicxmlToSong(xml, fileName.replace(/\.[^.]+$/, ''))
+    const song = musicxmlToSong(xml, fileName.replace(/\.[^.]+$/, ''))
+
+    // 结果质量把关：整页乐谱只认出几个音、或音高几乎没有变化 → 必是垃圾结果
+    const uniquePitches = new Set(song.notes.map(n => n.midi)).size
+    if (song.notes.length < 10 || uniquePitches < 4) {
+      return { ...song, lowQuality: true }
+    }
+    return song
   } finally {
     rm(dir, { recursive: true, force: true }).catch(() => {})
   }

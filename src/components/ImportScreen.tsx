@@ -171,10 +171,35 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         bpm?: number
         notes?: Array<{ midi: number; time: number; duration: number }>
         error?: string
+        lowQuality?: boolean
       }
       if (!res.ok) throw new Error(data.error ?? `OMR 服务错误（${res.status}）`)
       if (!Array.isArray(data.notes) || data.notes.length === 0) {
         throw new Error('没有识别出音符')
+      }
+      if (data.lowQuality) {
+        setProgress('图片质量不足以精确识别，自动切换 AI 通道（约 2 分钟）…')
+        const dataUrl = await compressImage(file)
+        const sourceName = file.name.replace(/\.[^.]+$/, '')
+        let draft
+        try {
+          draft = await recognizeWithSplit(dataUrl, sourceName, false)
+        } catch {
+          throw new Error(
+            '图片质量不足：精确识别无有效结果，AI 兜底也失败了。建议改用 PDF 文件或更清晰的截图',
+          )
+        }
+        onDraft(
+          {
+            id: `img-${Date.now().toString(36)}`,
+            name: draft.name,
+            bpm: draft.bpm,
+            notes: draft.notes,
+          },
+          'image',
+          `OMR 判定图片质量不足，已由 AI 兜底识别出 ${draft.notes.length} 个音（准确率有限），请仔细校对后保存`,
+        )
+        return
       }
       onDraft(
         {
