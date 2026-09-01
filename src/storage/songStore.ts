@@ -1,7 +1,9 @@
 import type { Song } from '../types'
 
+export type SongSource = 'image' | 'midi' | 'omr'
+
 export interface CustomSong extends Song {
-  source: 'image' | 'midi'
+  source: SongSource
   createdAt: number
 }
 
@@ -56,7 +58,7 @@ export function listCustomSongs(): CustomSong[] {
   return parseAll()
 }
 
-export function saveCustomSong(song: Song, source: 'image' | 'midi'): CustomSong {
+export function saveCustomSong(song: Song, source: SongSource): CustomSong {
   const entry: CustomSong = {
     ...song,
     name: song.name.trim() || '未命名曲目',

@@ -7,7 +7,7 @@ import { PrimaryButton, GhostButton } from './ui/Button'
 
 interface Props {
   initial: Song
-  source: 'image' | 'midi'
+  source: 'image' | 'midi' | 'omr'
   info?: string
   onSave: (song: Song) => void
   onCancel: () => void
@@ -241,7 +241,7 @@ export function PianoRollEditor({ initial, source, info, onSave, onCancel }: Pro
           ‹ 返回
         </GhostButton>
         <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-          {source === 'image' ? '识谱校对' : 'MIDI 校对'}
+          {source === 'image' ? '识谱校对' : source === 'omr' ? 'OMR 校对' : 'MIDI 校对'}
         </span>
         <input
           value={name}

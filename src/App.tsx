@@ -55,7 +55,11 @@ export default function App() {
   const [wrong, setWrong] = useState<{ midi: number; id: number } | null>(null)
   const [synthOn, setSynthOn] = useState(true)
   const [customSongs, setCustomSongs] = useState<CustomSong[]>(() => listCustomSongs())
-  const [draft, setDraft] = useState<{ song: Song; source: 'image' | 'midi'; info?: string } | null>(null)
+  const [draft, setDraft] = useState<{
+    song: Song
+    source: 'image' | 'midi' | 'omr'
+    info?: string
+  } | null>(null)
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -286,8 +290,8 @@ export default function App() {
                         onClick={() => void startSong(s.id, mode)}
                         className="flex flex-1 items-baseline gap-6 py-5 text-left transition-colors duration-150 hover:text-primary"
                       >
-                        <span className="w-6 text-xs tabular-nums text-muted">
-                          {s.source === 'image' ? 'AI' : 'MD'}
+                        <span className="w-8 text-xs tabular-nums text-muted">
+                          {s.source === 'image' ? 'AI' : s.source === 'omr' ? 'OMR' : 'MD'}
                         </span>
                         <span className="flex-1 text-base text-primary">{s.name}</span>
                         <span className="text-xs tabular-nums text-muted">

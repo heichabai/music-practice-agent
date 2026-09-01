@@ -48,6 +48,11 @@ export default defineConfig(({ mode }) => {
           rewrite: path => path.replace(/^\/api\/deepseek/, ''),
           ...(deepseekKey ? { headers: { Authorization: `Bearer ${deepseekKey}` } } : {}),
         },
+        '/api/omr': {
+          target: 'http://localhost:5175',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api\/omr/, '/omr'),
+        },
         '/api/vision': {
           target: upstream.target,
           changeOrigin: true,

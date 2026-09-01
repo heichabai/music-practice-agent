@@ -20,12 +20,13 @@ page.on('console', m => {
 
 await page.goto('http://localhost:5173', { waitUntil: 'domcontentloaded' })
 await page.click('text=导入乐谱 / MIDI')
-await page.waitForSelector('input[accept*="pdf"]', { state: 'attached' })
-await page.setInputFiles('input[accept*="pdf"]', imagePath)
-console.log('已上传真实乐谱图片，等待识别…')
+await page.waitForSelector('input[type=file]', { state: 'attached' })
+// 第一个文件输入是 OMR 卡片（本地精确识别）
+await page.locator('input[type=file]').first().setInputFiles(imagePath)
+console.log('已通过 OMR 通道上传真实乐谱，等待识别…')
 
-let outcome = '超时（3 分钟）'
-for (let i = 0; i < 60; i++) {
+let outcome = '超时（4 分钟）'
+for (let i = 0; i < 80; i++) {
   await page.waitForTimeout(3000)
   const body = (await page.textContent('body')) ?? ''
   if (body.includes('保存到曲库')) {

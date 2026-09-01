@@ -7,7 +7,7 @@ import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
 
 interface Props {
-  onDraft: (song: Song, source: 'image' | 'midi', info?: string) => void
+  onDraft: (song: Song, source: 'image' | 'midi' | 'omr', info?: string) => void
   onCancel: () => void
 }
 
@@ -29,11 +29,12 @@ async function compressImage(file: File): Promise<string> {
 }
 
 export function ImportScreen({ onDraft, onCancel }: Props) {
-  const [busy, setBusy] = useState<'image' | 'midi' | null>(null)
+  const [busy, setBusy] = useState<'image' | 'midi' | 'omr' | null>(null)
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const midiInputRef = useRef<HTMLInputElement | null>(null)
+  const omrInputRef = useRef<HTMLInputElement | null>(null)
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
@@ -152,6 +153,48 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
     }
   }
 
+  const handleOmr = async (file: File) => {
+    setBusy('omr')
+    setError('')
+    setProgress('本地 OMR 引擎识别中…')
+    try {
+      const res = await fetch(
+        '/api/omr?name=' + encodeURIComponent(file.name),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: await file.arrayBuffer(),
+        },
+      )
+      const data = (await res.json()) as {
+        name?: string
+        bpm?: number
+        notes?: Array<{ midi: number; time: number; duration: number }>
+        error?: string
+      }
+      if (!res.ok) throw new Error(data.error ?? `OMR 服务错误（${res.status}）`)
+      if (!Array.isArray(data.notes) || data.notes.length === 0) {
+        throw new Error('没有识别出音符')
+      }
+      onDraft(
+        {
+          id: `omr-${Date.now().toString(36)}`,
+          name: data.name ?? file.name.replace(/\.[^.]+$/, ''),
+          bpm: data.bpm ?? 100,
+          notes: data.notes,
+        },
+        'omr',
+        `本地 OMR 精确识别出 ${data.notes.length} 个音，请试听确认后保存`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(null)
+      setProgress('')
+      if (omrInputRef.current) omrInputRef.current.value = ''
+    }
+  }
+
   const handleMidi = async (file: File) => {
     setBusy('midi')
     setError('')
@@ -186,6 +229,37 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         </p>
 
         <div className="mt-10 space-y-6">
+          <div className="rounded-xl border border-accent/40 p-6">
+            <p className="text-sm font-medium text-primary">
+              本地精确识别 · 印刷谱推荐
+              <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] text-accent-strong">
+                OMR 离线引擎
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              专业乐谱识别引擎（Audiveris），在本机离线运行，印刷五线谱准确率高；
+              支持图片与 PDF
+            </p>
+            <input
+              ref={omrInputRef}
+              type="file"
+              accept="image/*,.pdf,application/pdf"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) void handleOmr(file)
+              }}
+            />
+            <PrimaryButton
+              className={`mt-4 ${busy !== null ? 'pointer-events-none opacity-40' : ''}`}
+              onClick={() => omrInputRef.current?.click()}
+            >
+              {busy === 'omr'
+                ? `${progress}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
+                : '选择乐谱（本地精确识别）'}
+            </PrimaryButton>
+          </div>
+
           <div className="rounded-xl border border-border-subtle p-6">
             <p className="text-sm font-medium text-primary">乐谱图片 / PDF · AI 识别</p>
             <p className="mt-1 text-xs text-muted">
