@@ -9,24 +9,28 @@ const browser = await chromium.launch({ executablePath: exe, headless: true })
 const page = await browser.newPage()
 
 const errors = []
-const pianoRequests = []
 page.on('pageerror', e => errors.push('[崩溃] ' + e.message))
 page.on('console', m => {
   if (m.type() === 'error' && !m.text().includes('favicon')) errors.push('[控制台] ' + m.text())
 })
-page.on('response', r => {
-  if (r.url().includes('/piano/')) pianoRequests.push(`${r.url().split('/').pop()} → ${r.status()}`)
-})
 
 await page.goto('http://localhost:5173', { waitUntil: 'domcontentloaded' })
 await page.click('text=开始练习')
-await page.waitForSelector('.score-svg svg', { timeout: 8000 })
+await page.waitForSelector('.abcjs-note', { timeout: 8000 })
 
-const noteCount = await page.locator('.abcjs-note').count()
-const panelVisible = await page.locator('.score-svg svg').isVisible()
-console.log('悬浮谱面板:', panelVisible ? '显示' : '隐藏', '| 渲染音符元素:', noteCount)
-console.log('钢琴采样请求:', pianoRequests.length > 0 ? pianoRequests.slice(0, 3).join(' | ') : '（等待中）')
+const svg = page.locator('svg').filter({ has: page.locator('.abcjs-note') }).first()
+const box = await svg.boundingBox()
+console.log(
+  '谱面条 SVG:',
+  box ? `${Math.round(box.width)}x${Math.round(box.height)}px（单行宽条=${box.width > 600 && box.height < 160}）` : '未渲染',
+)
+console.log('音符元素:', await page.locator('.abcjs-note').count())
+
+await page.click('button[aria-label="关闭乐谱条"]')
+await page.waitForTimeout(300)
+const closed = (await page.locator('.abcjs-note').count()) === 0
+console.log('关闭按钮:', closed ? '生效（谱面条已隐藏）' : '未生效')
 console.log('页面错误:', errors.length === 0 ? '无' : '')
-errors.slice(0, 5).forEach(e => console.log(' ', e))
+errors.slice(0, 3).forEach(e => console.log(' ', e))
 await browser.close()
-process.exit(errors.length > 0 ? 1 : 0)
+process.exit(errors.length > 0 || !closed ? 1 : 0)

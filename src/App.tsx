@@ -402,15 +402,18 @@ export default function App() {
             </button>
           </div>
 
+          {/* 乐谱条：单行横向滚动，跟随进度 */}
+          {showScore && (
+            <ScorePanel
+              song={song}
+              engineRef={engineRef}
+              imageUrl={(song as CustomSong).imageDataUrl}
+              onClose={() => setShowScore(false)}
+            />
+          )}
+
           {/* 画布 + 键盘无缝衔接 */}
           <div ref={playAreaRef} className="relative w-full">
-            {showScore && (
-              <ScorePanel
-                song={song}
-                engineRef={engineRef}
-                imageUrl={(song as CustomSong).imageDataUrl}
-              />
-            )}
             <FallingNotes engineRef={engineRef} layout={layout} width={width} />
             <PianoKeyboard
               layout={layout}

@@ -82,11 +82,7 @@ body {
   border-radius: 4px;
 }
 
-/* ---------- 悬浮乐谱窗 ---------- */
-.score-svg svg {
-  width: 100%;
-  height: auto;
-}
+/* ---------- 乐谱条 ---------- */
 .score-svg .abcjs-note.score-current path {
   fill: #d97706 !important;
 }

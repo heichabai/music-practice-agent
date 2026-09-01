@@ -9,23 +9,53 @@ interface Props {
   song: Song
   engineRef: RefObject<GameEngine | null>
   imageUrl?: string
+  onClose: () => void
 }
 
-export function ScorePanel({ song, engineRef, imageUrl }: Props) {
-  const notationRef = useRef<HTMLDivElement | null>(null)
+const STRIP_H = 108
+
+export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
+  const innerRef = useRef<HTMLDivElement | null>(null)
+  const hostRef = useRef<HTMLDivElement | null>(null)
   const [tab, setTab] = useState<'notation' | 'image'>(imageUrl ? 'image' : 'notation')
   const noteBeatsRef = useRef<number[]>([])
   const elemsRef = useRef<Element[]>([])
+  const translateRef = useRef(0)
+  const sizedRef = useRef(false)
+
+  const sizeSvg = () => {
+    const svg = hostRef.current?.querySelector('svg')
+    if (!svg || sizedRef.current) return
+    const box = svg.getBoundingClientRect()
+    if (box.width === 0 || box.height === 0) return
+    const scale = STRIP_H / box.height
+    svg.style.width = `${box.width * scale}px`
+    svg.style.height = `${STRIP_H}px`
+    svg.style.display = 'block'
+    sizedRef.current = true
+  }
 
   useEffect(() => {
-    const host = notationRef.current
+    const host = hostRef.current
     if (!host) return
     host.innerHTML = ''
     const { abc, noteBeats } = songToAbc(song)
     noteBeatsRef.current = noteBeats
-    abcjs.renderAbc(host, abc, { add_classes: true, paddingleft: 0, paddingright: 0 })
+    abcjs.renderAbc(host, abc, {
+      add_classes: true,
+      staffwidth: Math.max(1400, song.notes.length * 60),
+      paddingleft: 0,
+      paddingright: 0,
+    })
     elemsRef.current = Array.from(host.querySelectorAll('.abcjs-note'))
+    translateRef.current = 0
+    sizedRef.current = false
+    sizeSvg()
   }, [song])
+
+  useEffect(() => {
+    if (tab === 'notation') sizeSvg()
+  }, [tab])
 
   useEffect(() => {
     let raf = 0
@@ -42,7 +72,21 @@ export function ScorePanel({ song, engineRef, imageUrl }: Props) {
         if (idx !== lastIdx) {
           const elems = elemsRef.current
           if (lastIdx >= 0 && elems[lastIdx]) elems[lastIdx].classList.remove('score-current')
-          if (idx >= 0 && elems[idx]) elems[idx].classList.add('score-current')
+          const inner = innerRef.current
+          if (idx >= 0 && elems[idx]) {
+            elems[idx].classList.add('score-current')
+            if (inner !== null) {
+              const outer = inner.parentElement
+              if (outer !== null) {
+                const innerRect = inner.getBoundingClientRect()
+                const elemRect = elems[idx].getBoundingClientRect()
+                const intrinsicX = elemRect.left - innerRect.left + translateRef.current
+                const target = Math.max(0, intrinsicX - outer.clientWidth * 0.35)
+                translateRef.current = target
+                inner.style.transform = `translateX(${-target}px)`
+              }
+            }
+          }
           lastIdx = idx
         }
       }
@@ -57,32 +101,42 @@ export function ScorePanel({ song, engineRef, imageUrl }: Props) {
   }, [engineRef])
 
   return (
-    <div className="absolute right-2 top-2 z-30 w-[46%] max-w-lg rounded-xl border border-border-subtle bg-white/95 shadow-lg backdrop-blur">
-      <div className="flex items-center gap-1 border-b border-slate-200 px-3 py-1 text-[11px]">
-        <span className="font-medium uppercase tracking-[0.15em] text-slate-400">Score</span>
-        <div className="flex-1" />
-        {imageUrl !== undefined && (
-          <div className="flex overflow-hidden rounded-full border border-slate-300 text-slate-600">
-            <button
-              onClick={() => setTab('notation')}
-              className={`px-3 py-0.5 ${tab === 'notation' ? 'bg-slate-800 text-white' : ''}`}
-            >
-              五线谱
-            </button>
-            <button
-              onClick={() => setTab('image')}
-              className={`px-3 py-0.5 ${tab === 'image' ? 'bg-slate-800 text-white' : ''}`}
-            >
-              原图
-            </button>
+    <div className="relative border-b border-border-subtle">
+      {imageUrl !== undefined && (
+        <div className="absolute right-12 top-1.5 z-10 flex overflow-hidden rounded-full border border-slate-300 bg-white/85 text-[10px] text-slate-600">
+          <button
+            onClick={() => setTab('notation')}
+            className={`px-2.5 py-0.5 ${tab === 'notation' ? 'bg-slate-800 text-white' : ''}`}
+          >
+            五线谱
+          </button>
+          <button
+            onClick={() => setTab('image')}
+            className={`px-2.5 py-0.5 ${tab === 'image' ? 'bg-slate-800 text-white' : ''}`}
+          >
+            原图
+          </button>
+        </div>
+      )}
+      <button
+        onClick={onClose}
+        aria-label="关闭乐谱条"
+        className="absolute right-2 top-0.5 z-10 rounded-full px-2 py-0.5 text-sm text-muted transition-colors hover:text-wrong"
+      >
+        ×
+      </button>
+      <div className="overflow-hidden" style={{ height: STRIP_H }}>
+        <div
+          ref={innerRef}
+          className="h-full transition-transform duration-300 will-change-transform"
+          style={{ display: tab === 'notation' ? 'inline-block' : 'none' }}
+        >
+          <div ref={hostRef} className="h-full bg-white" />
+        </div>
+        {tab === 'image' && imageUrl !== undefined && (
+          <div className="h-full overflow-x-auto bg-white">
+            <img src={imageUrl} alt={song.name} className="h-full w-auto" />
           </div>
-        )}
-      </div>
-      <div className="max-h-60 overflow-auto p-2">
-        {tab === 'notation' ? (
-          <div ref={notationRef} className="score-svg" />
-        ) : (
-          <img src={imageUrl} alt={song.name} className="w-full" />
         )}
       </div>
     </div>
