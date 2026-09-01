@@ -34,7 +34,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       return
     }
     if (bb.width === 0 || bb.height === 0) return
-    const margin = 10
+    const margin = 26
     const vbW = bb.width + margin * 2
     const vbH = bb.height + margin * 2
     svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)
@@ -105,7 +105,11 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
                 const innerRect = inner.getBoundingClientRect()
                 const elemRect = elems[idx].getBoundingClientRect()
                 const intrinsicX = elemRect.left - innerRect.left + translateRef.current
-                const target = Math.max(0, intrinsicX - outer.clientWidth * 0.35)
+                const maxScroll = Math.max(0, inner.scrollWidth - outer.clientWidth)
+                const target = Math.min(
+                  maxScroll,
+                  Math.max(0, intrinsicX - outer.clientWidth * 0.35),
+                )
                 translateRef.current = target
                 inner.style.transform = `translateX(${-target}px)`
               }
