@@ -16,6 +16,7 @@ import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } fr
 import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
+import { playPianoNote, preloadPiano } from './audio/piano'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor'
 
@@ -83,9 +84,13 @@ export default function App() {
       const engine = engineRef.current
       if (!engine) return
       const result = engine.press(midi)
-      if (result === 'hit' && synthRef.current && synthOn) {
-        const freq = Tone.Frequency(midi, 'midi').toFrequency()
-        synthRef.current.triggerAttackRelease(freq, 0.3)
+      if (result === 'hit' && synthOn) {
+        void playPianoNote(midi, 0.45).then(usedPiano => {
+          if (!usedPiano && synthRef.current) {
+            const freq = Tone.Frequency(midi, 'midi').toFrequency()
+            synthRef.current.triggerAttackRelease(freq, 0.3)
+          }
+        })
       } else if (result === 'wrong') {
         setWrong({ midi, id: Date.now() })
         if (wrongTimerRef.current) window.clearTimeout(wrongTimerRef.current)
@@ -128,6 +133,7 @@ export default function App() {
       setReport(null)
       try {
         await Tone.start()
+        preloadPiano()
         if (!synthRef.current) {
           synthRef.current = new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'triangle' },

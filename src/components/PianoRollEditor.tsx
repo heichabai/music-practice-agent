@@ -3,6 +3,7 @@ import * as Tone from 'tone'
 import type { Note, Song } from '../types'
 import { noteHex } from './notesPalette'
 import { noteName } from '../game/keyboard'
+import { getPiano } from '../audio/piano'
 import { PrimaryButton, GhostButton } from './ui/Button'
 
 interface Props {
@@ -94,22 +95,36 @@ export function PianoRollEditor({ initial, source, info, onSave, onCancel }: Pro
     stopPlayback()
     try {
       await Tone.start()
-      if (!synthRef.current) {
-        synthRef.current = new Tone.PolySynth(Tone.Synth, {
+      let synth: Tone.PolySynth | null = synthRef.current
+      const piano = await getPiano()
+      if (!synth) {
+        synth = new Tone.PolySynth(Tone.Synth, {
           oscillator: { type: 'triangle' },
         }).toDestination()
-        synthRef.current.volume.value = -6
+        synth.volume.value = -6
+        synthRef.current = synth
       }
       const spb = 60 / bpm
-      const synth = synthRef.current
       Tone.Transport.bpm.value = bpm
       const part = new Tone.Part(
-        (time, value: { freq: number; dur: number }) => {
-          synth.triggerAttackRelease(value.freq, value.dur, time)
+        (time, value: { midi: number; dur: number }) => {
+          if (piano !== null) {
+            piano.triggerAttackRelease(
+              Tone.Frequency(value.midi, 'midi').toFrequency(),
+              value.dur,
+              time,
+            )
+          } else {
+            synth?.triggerAttackRelease(
+              Tone.Frequency(value.midi, 'midi').toFrequency(),
+              value.dur,
+              time,
+            )
+          }
         },
         notes.map(n => ({
           time: n.time * spb,
-          freq: Tone.Frequency(n.midi, 'midi').toFrequency(),
+          midi: n.midi,
           dur: Math.max(0.08, n.duration * spb * 0.9),
         })),
       )
