@@ -1,7 +1,14 @@
-import midiPkg from '@tonejs/midi'
+import * as midiModule from '@tonejs/midi'
 import type { Note, Song } from '../types'
 
-const { Midi } = midiPkg as typeof midiPkg & { Midi: typeof import('@tonejs/midi').Midi }
+type MidiCtor = typeof import('@tonejs/midi').Midi
+
+// CommonJS 包在不同环境下的导出位置不同，逐级兜底
+const moduleShape = midiModule as unknown as {
+  Midi?: MidiCtor
+  default?: { Midi?: MidiCtor }
+}
+const Midi = moduleShape.Midi ?? moduleShape.default?.Midi
 
 export interface MidiImportResult {
   song: Song
@@ -10,6 +17,9 @@ export interface MidiImportResult {
 
 /** 解析 .mid 文件为练习用单旋律曲目（自动选取音符最多的轨道） */
 export function importMidiFile(buffer: ArrayBuffer, fileName: string): MidiImportResult {
+  if (!Midi) {
+    throw new Error('MIDI 解析模块加载失败，请刷新页面重试')
+  }
   const midi = new Midi(buffer)
   const tracks = midi.tracks.filter(t => t.notes.length > 0)
   if (tracks.length === 0) {
