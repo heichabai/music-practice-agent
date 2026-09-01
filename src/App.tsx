@@ -3,18 +3,21 @@ import * as Tone from 'tone'
 import { FallingNotes } from './components/FallingNotes'
 import { PianoKeyboard } from './components/PianoKeyboard'
 import { ReportScreen } from './components/ReportScreen'
+import { ImportScreen } from './components/ImportScreen'
+import { PianoRollEditor } from './components/PianoRollEditor'
 import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
 import { GhostButton, PrimaryButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
-import { saveSession } from './storage/sessionStore'
 import { SONGS } from './game/songs'
-import type { PracticeMode } from './types'
+import { saveSession } from './storage/sessionStore'
+import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } from './storage/songStore'
+import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
 
-type Screen = 'select' | 'play' | 'report'
+type Screen = 'select' | 'play' | 'report' | 'import' | 'editor'
 
 // 电脑键盘 → midi（白键 A S D F G H J K，黑键 W E T Y U）
 const KEYBOARD_MAP: Record<string, number> = {
@@ -51,6 +54,8 @@ export default function App() {
   const [targetSet, setTargetSet] = useState<Set<number>>(new Set())
   const [wrong, setWrong] = useState<{ midi: number; id: number } | null>(null)
   const [synthOn, setSynthOn] = useState(true)
+  const [customSongs, setCustomSongs] = useState<CustomSong[]>(() => listCustomSongs())
+  const [draft, setDraft] = useState<{ song: Song; source: 'image' | 'midi'; info?: string } | null>(null)
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -58,7 +63,8 @@ export default function App() {
   const finishedRef = useRef(false)
   const targetSigRef = useRef('')
 
-  const song = useMemo(() => SONGS.find(s => s.id === songId) ?? SONGS[0], [songId])
+  const allSongs = useMemo(() => [...SONGS, ...customSongs], [customSongs])
+  const song = useMemo(() => allSongs.find(s => s.id === songId) ?? allSongs[0], [allSongs, songId])
   const layout = useMemo(() => KeyboardLayout.fromNotes(song.notes), [song])
   const { ref: playAreaRef, width } = useElementWidth<HTMLDivElement>()
 
@@ -108,7 +114,7 @@ export default function App() {
   const startSong = useCallback(
     async (id: string, practiceMode: PracticeMode) => {
       setSongId(id)
-      const s = SONGS.find(x => x.id === id) ?? SONGS[0]
+      const s = allSongs.find(x => x.id === id) ?? allSongs[0]
       engineRef.current = new GameEngine(s, practiceMode)
       finishedRef.current = false
       targetSigRef.current = ''
@@ -129,7 +135,7 @@ export default function App() {
       }
       setScreen('play')
     },
-    [],
+    [allSongs],
   )
 
   // 主循环：推进引擎时间 + 同步 HUD 与目标键高亮
@@ -268,9 +274,44 @@ export default function App() {
 
           {/* 曲目：apple 式编号列表 */}
           <section className="mt-10 pb-16">
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-              Pieces
-            </h2>
+            {customSongs.length > 0 && (
+              <>
+                <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                  My Pieces
+                </h2>
+                <ol className="mt-6">
+                  {customSongs.map(s => (
+                    <li key={s.id} className="group flex items-center border-b border-border-subtle">
+                      <button
+                        onClick={() => void startSong(s.id, mode)}
+                        className="flex flex-1 items-baseline gap-6 py-5 text-left transition-colors duration-150 hover:text-primary"
+                      >
+                        <span className="w-6 text-xs tabular-nums text-muted">
+                          {s.source === 'image' ? 'AI' : 'MD'}
+                        </span>
+                        <span className="flex-1 text-base text-primary">{s.name}</span>
+                        <span className="text-xs tabular-nums text-muted">
+                          {s.bpm} BPM · {s.notes.length} 音
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          deleteCustomSong(s.id)
+                          setCustomSongs(listCustomSongs())
+                        }}
+                        className="ml-4 rounded-full px-3 py-1 text-xs text-muted opacity-0 transition-opacity duration-150 hover:text-wrong group-hover:opacity-100"
+                      >
+                        删除
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+                <hr className="mt-6 border-border-subtle" />
+                <h2 className="mt-10 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                  Pieces
+                </h2>
+              </>
+            )}
             <ol className="mt-6">
               {SONGS.map((s, i) => (
                 <li key={s.id}>
@@ -296,11 +337,18 @@ export default function App() {
                     <hr className="border-border-subtle" />
                   )}
                 </li>
-              ))}
-            </ol>
-          </section>
-        </div>
-      )}
+                ))}
+              </ol>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <GhostButton onClick={() => setScreen('import')}>导入乐谱 / MIDI</GhostButton>
+                <span className="text-xs text-muted">
+                  乐谱图片 AI 识别，或 MIDI 直传，校对后入库
+                </span>
+              </div>
+            </section>
+          </div>
+        )}
 
       {screen === 'play' && (
         <div className="screen-enter w-full max-w-4xl">
@@ -354,6 +402,38 @@ export default function App() {
                 : '音符下落中…'
               : '跟上节奏 · 音符到判定线时弹奏'}
           </p>
+        </div>
+      )}
+
+      {screen === 'import' && (
+        <div className="screen-enter flex w-full justify-center">
+          <ImportScreen
+            onDraft={(song, source, info) => {
+              setDraft({ song, source, info })
+              setScreen('editor')
+            }}
+            onCancel={() => setScreen('select')}
+          />
+        </div>
+      )}
+
+      {screen === 'editor' && draft !== null && (
+        <div className="screen-enter flex w-full justify-center">
+          <PianoRollEditor
+            initial={draft.song}
+            source={draft.source}
+            info={draft.info}
+            onSave={song => {
+              saveCustomSong(song, draft.source)
+              setCustomSongs(listCustomSongs())
+              setDraft(null)
+              setScreen('select')
+            }}
+            onCancel={() => {
+              setDraft(null)
+              setScreen('import')
+            }}
+          />
         </div>
       )}
 
