@@ -5,6 +5,7 @@ import { PianoKeyboard } from './components/PianoKeyboard'
 import { ReportScreen } from './components/ReportScreen'
 import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
+import { ScorePanel } from './components/ScorePanel'
 import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
 import { GhostButton, PrimaryButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
@@ -60,7 +61,9 @@ export default function App() {
     song: Song
     source: 'image' | 'midi' | 'omr'
     info?: string
+    imageUrl?: string
   } | null>(null)
+  const [showScore, setShowScore] = useState(true)
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -391,10 +394,23 @@ export default function App() {
             >
               伴奏音 {synthOn ? '开' : '关'}
             </button>
+            <button
+              onClick={() => setShowScore(v => !v)}
+              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+            >
+              乐谱 {showScore ? '开' : '关'}
+            </button>
           </div>
 
           {/* 画布 + 键盘无缝衔接 */}
           <div ref={playAreaRef} className="relative w-full">
+            {showScore && (
+              <ScorePanel
+                song={song}
+                engineRef={engineRef}
+                imageUrl={(song as CustomSong).imageDataUrl}
+              />
+            )}
             <FallingNotes engineRef={engineRef} layout={layout} width={width} />
             <PianoKeyboard
               layout={layout}
@@ -418,8 +434,8 @@ export default function App() {
       {screen === 'import' && (
         <div className="screen-enter flex w-full justify-center">
           <ImportScreen
-            onDraft={(song, source, info) => {
-              setDraft({ song, source, info })
+            onDraft={(song, source, info, imageUrl) => {
+              setDraft({ song, source, info, imageUrl })
               setScreen('editor')
             }}
             onCancel={() => setScreen('select')}
@@ -434,7 +450,7 @@ export default function App() {
             source={draft.source}
             info={draft.info}
             onSave={song => {
-              saveCustomSong(song, draft.source)
+              saveCustomSong(song, draft.source, draft.imageUrl)
               setCustomSongs(listCustomSongs())
               setDraft(null)
               setScreen('select')

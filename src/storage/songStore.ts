@@ -5,6 +5,8 @@ export type SongSource = 'image' | 'midi' | 'omr'
 export interface CustomSong extends Song {
   source: SongSource
   createdAt: number
+  /** 原谱压缩图（练习时悬浮窗可切换显示） */
+  imageDataUrl?: string
 }
 
 const KEY = 'mpa.customSongs.v1'
@@ -58,15 +60,22 @@ export function listCustomSongs(): CustomSong[] {
   return parseAll()
 }
 
-export function saveCustomSong(song: Song, source: SongSource): CustomSong {
-  const entry: CustomSong = {
+export function saveCustomSong(song: Song, source: SongSource, imageDataUrl?: string): CustomSong {
+  const base: CustomSong = {
     ...song,
     name: song.name.trim() || '未命名曲目',
     source,
     createdAt: Date.now(),
   }
+  const hasImage = imageDataUrl !== undefined && imageDataUrl.length < 500_000
+  const entry: CustomSong = hasImage ? { ...base, imageDataUrl } : base
   const rest = parseAll().filter(s => s.id !== entry.id)
-  setRaw(JSON.stringify([entry, ...rest].slice(0, MAX_SONGS)))
+  try {
+    setRaw(JSON.stringify([entry, ...rest].slice(0, MAX_SONGS)))
+  } catch {
+    // 存储超限（多为图片过大）：去掉图片重试
+    setRaw(JSON.stringify([base, ...rest].slice(0, MAX_SONGS)))
+  }
   return entry
 }
 

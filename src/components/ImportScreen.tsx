@@ -7,11 +7,17 @@ import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
 
 interface Props {
-  onDraft: (song: Song, source: 'image' | 'midi' | 'omr', info?: string) => void
+  onDraft: (
+    song: Song,
+    source: 'image' | 'midi' | 'omr',
+    info?: string,
+    imageUrl?: string,
+  ) => void
   onCancel: () => void
 }
 
 const MAX_EDGE = 1568
+const STORE_EDGE = 1100
 
 async function compressImage(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file)
@@ -26,6 +32,24 @@ async function compressImage(file: File): Promise<string> {
   ctx.drawImage(bitmap, 0, 0, w, h)
   bitmap.close()
   return canvas.toDataURL('image/jpeg', 0.85)
+}
+
+/** 生成存档用的小图（长边 1100、质量 0.72，控制 localStorage 体积） */
+async function shrinkForStore(dataUrl: string): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob())
+    const scale = Math.min(1, STORE_EDGE / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return ''
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    return canvas.toDataURL('image/jpeg', 0.72)
+  } catch {
+    return ''
+  }
 }
 
 export function ImportScreen({ onDraft, onCancel }: Props) {
@@ -46,7 +70,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
     return () => window.clearInterval(timer)
   }, [busy])
 
-  const finishDraft = (draft: SheetDraft, pages: number) => {
+  const finishDraft = (draft: SheetDraft, pages: number, imageUrl?: string) => {
     const truncationHint = draft.salvaged ? '；识别输出曾被截断，后半段请重点核对' : ''
     onDraft(
       {
@@ -61,6 +85,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         : `AI 识别出 ${draft.notes.length} 个音`) +
         truncationHint +
         '，请试听并校对后保存',
+      imageUrl !== '' ? imageUrl : undefined,
     )
   }
 
@@ -93,16 +118,6 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
       if (parts === 4) return { ...merged, salvaged: true }
     }
     return first
-  }
-
-  const recognizeImage = async (file: File) => {
-    const dataUrl = await compressImage(file)
-    const sourceName = file.name.replace(/\.[^.]+$/, '')
-    try {
-      return await recognizeWithSplit(dataUrl, sourceName, false)
-    } catch {
-      return await recognizeWithSplit(dataUrl, sourceName, false)
-    }
   }
 
   const recognizePdf = async (file: File): Promise<{ draft: SheetDraft; pages: number }> => {
@@ -141,8 +156,15 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         finishDraft(draft, pages)
       } else {
         setProgress('正在识别乐谱…')
-        const draft = await recognizeImage(file)
-        finishDraft(draft, 1)
+        const dataUrl = await compressImage(file)
+        const sourceName = file.name.replace(/\.[^.]+$/, '')
+        let draft: SheetDraft
+        try {
+          draft = await recognizeWithSplit(dataUrl, sourceName, false)
+        } catch {
+          draft = await recognizeWithSplit(dataUrl, sourceName, false)
+        }
+        finishDraft(draft, 1, await shrinkForStore(dataUrl))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -198,9 +220,12 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
           },
           'image',
           `OMR 判定图片质量不足，已由 AI 兜底识别出 ${draft.notes.length} 个音（准确率有限），请仔细校对后保存`,
+          await shrinkForStore(dataUrl),
         )
         return
       }
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+      const storeImage = isPdf ? undefined : await shrinkForStore(await compressImage(file))
       onDraft(
         {
           id: `omr-${Date.now().toString(36)}`,
@@ -210,6 +235,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         },
         'omr',
         `本地 OMR 精确识别出 ${data.notes.length} 个音（谱面全部声部，双手谱需双手练习），请试听确认后保存`,
+        storeImage !== '' ? storeImage : undefined,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
