@@ -5,6 +5,7 @@ import { SHEET_PROMPT, parseSheetResponse, mergePageDrafts, type SheetDraft } fr
 import { pdfToImageDataUrls, splitImageDataUrl, MAX_PDF_PAGES } from '../ai/pdfPages'
 import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
+import { IconChevronRight, IconMidiKeys, IconScanFrame, IconSparkles } from './icons'
 
 interface Props {
   onDraft: (
@@ -279,12 +280,25 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
           导入后都会进入校对编辑器，试听无误再存入曲库。
         </p>
 
-        <div className="mt-10 space-y-6">
-          <div className="rounded-xl border border-accent/40 p-6">
-            <p className="text-sm font-medium text-primary">
-              本地精确识别 · 印刷谱推荐
-              <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] text-accent-strong">
-                OMR 离线引擎
+        <div className="mt-6 flex items-center gap-2 text-micro text-muted">
+          <span className="rounded-full bg-raised-2 px-2.5 py-1 text-primary">识别 / 导入</span>
+          <IconChevronRight className="h-3 w-3 text-muted" />
+          <span className="rounded-full bg-raised-2 px-2.5 py-1">校对</span>
+          <IconChevronRight className="h-3 w-3 text-muted" />
+          <span className="rounded-full bg-raised-2 px-2.5 py-1">入库练习</span>
+        </div>
+
+        <div className="mt-8 space-y-4">
+          <div className="rounded-xl border border-accent/40 bg-surface p-5 transition-colors duration-200 hover:border-accent/70">
+            <div className="flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent-dim text-accent">
+              <IconScanFrame className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-2 text-sm font-medium text-primary">
+              本地精确识别
+              <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-normal text-accent-strong">
+                印刷谱推荐 · OMR 离线引擎
               </span>
             </p>
             <p className="mt-1 text-xs text-muted">
@@ -309,9 +323,16 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
                 ? `${progress}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
                 : '选择乐谱（本地精确识别）'}
             </PrimaryButton>
+            </div>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-border-subtle p-6">
+          <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
+            <div className="flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-raised-2 text-info">
+              <IconSparkles className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-primary">乐谱图片 / PDF · AI 识别</p>
             <p className="mt-1 text-xs text-muted">
               支持五线谱图片（截图或清晰照片）与 PDF 乐谱（最多识别前 {MAX_PDF_PAGES} 页，按小节自动衔接）；
@@ -335,9 +356,16 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
                 ? `${progress || '正在识别乐谱…'}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
                 : '选择乐谱图片或 PDF'}
             </PrimaryButton>
+            </div>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-border-subtle p-6">
+          <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
+            <div className="flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-raised-2 text-secondary">
+              <IconMidiKeys className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-primary">MIDI 文件 · 精确导入</p>
             <p className="mt-1 text-xs text-muted">
               支持 .mid / .midi，多轨道自动选取主旋律
@@ -358,6 +386,8 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
             >
               {busy === 'midi' ? '正在解析…' : '选择 MIDI 文件'}
             </GhostButton>
+            </div>
+            </div>
           </div>
         </div>
 

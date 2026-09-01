@@ -8,6 +8,7 @@ import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
 import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
 import { GhostButton, PrimaryButton } from './components/ui/Button'
+import { IconChevronRight, IconMusicNote, IconTrash } from './components/icons'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -44,6 +45,28 @@ function sameHud(a: HudSnapshot, b: HudSnapshot): boolean {
 const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
   wait: { label: '等待式', desc: '弹对才前进，适合认音和入门' },
   free: { label: '自由式', desc: '连续播放，考察节奏和时值' },
+}
+
+/** 每首曲子一个稳定的色相，用于曲库封面色块 */
+function songHue(song: Song): number {
+  if (song.id === 'warmup') return 206
+  if (song.id === 'twinkle') return 268
+  if (song.id === 'ode') return 152
+  return ((song.notes[0]?.midi ?? 60) * 47) % 360
+}
+
+function CoverTile({ song }: { song: Song }) {
+  const hue = songHue(song)
+  return (
+    <span
+      className="grid h-12 w-12 shrink-0 place-items-center rounded-lg"
+      style={{
+        background: `linear-gradient(135deg, hsl(${hue} 42% 30%), hsl(${(hue + 40) % 360} 46% 15%))`,
+      }}
+    >
+      <IconMusicNote className="h-5 w-5" style={{ color: `hsl(${hue} 70% 74%)` }} />
+    </span>
+  )
 }
 
 export default function App() {
@@ -286,81 +309,79 @@ export default function App() {
 
           <hr className="mt-12 border-border-subtle" />
 
-          {/* 曲目：apple 式编号列表 */}
+          {/* 曲目：封面卡片 */}
           <section className="mt-10 pb-16">
             {customSongs.length > 0 && (
               <>
-                <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                <h2 className="text-micro font-medium uppercase text-muted">
                   My Pieces
                 </h2>
-                <ol className="mt-6">
+                <div className="mt-4 space-y-2.5">
                   {customSongs.map(s => (
-                    <li key={s.id} className="group flex items-center border-b border-border-subtle">
+                    <div key={s.id} className="group relative">
                       <button
                         onClick={() => void startSong(s.id, mode)}
-                        className="flex flex-1 items-baseline gap-6 py-5 text-left transition-colors duration-150 hover:text-primary"
+                        className="flex w-full items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-px hover:border-accent/50 hover:bg-raised"
                       >
-                        <span className="w-8 text-xs tabular-nums text-muted">
-                          {s.source === 'image' ? 'AI' : s.source === 'omr' ? 'OMR' : 'MD'}
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border-subtle text-xs font-semibold text-secondary">
+                          {s.source === 'image' ? 'AI' : s.source === 'omr' ? 'OMR' : 'MIDI'}
                         </span>
-                        <span className="flex-1 text-base text-primary">{s.name}</span>
-                        <span className="text-xs tabular-nums text-muted">
-                          {s.bpm} BPM · {s.notes.length} 音
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-body font-medium text-primary">
+                            {s.name}
+                          </span>
+                          <span className="mt-0.5 block text-caption text-muted">
+                            {s.bpm} BPM · {s.notes.length} 音
+                          </span>
                         </span>
+                        <IconChevronRight className="h-4 w-4 shrink-0 text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                       </button>
                       <button
                         onClick={() => {
                           deleteCustomSong(s.id)
                           setCustomSongs(listCustomSongs())
                         }}
-                        className="ml-4 rounded-full px-3 py-1 text-xs text-muted opacity-0 transition-opacity duration-150 hover:text-wrong group-hover:opacity-100"
+                        aria-label={`删除 ${s.name}`}
+                        className="absolute -top-1.5 right-2 grid h-7 w-7 place-items-center rounded-full border border-border-subtle bg-raised text-muted opacity-0 transition-all duration-150 hover:border-wrong/60 hover:text-wrong group-hover:opacity-100"
                       >
-                        删除
+                        <IconTrash className="h-3.5 w-3.5" />
                       </button>
-                    </li>
+                    </div>
                   ))}
-                </ol>
-                <hr className="mt-6 border-border-subtle" />
-                <h2 className="mt-10 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                </div>
+                <hr className="mt-8 border-border-subtle" />
+                <h2 className="mt-8 text-micro font-medium uppercase text-muted">
                   Pieces
                 </h2>
               </>
             )}
-            <ol className="mt-6">
-              {SONGS.map((s, i) => (
-                <li key={s.id}>
+            <div className={customSongs.length > 0 ? 'mt-4 space-y-2.5' : 'mt-4 space-y-2.5'}>
+              {SONGS.map(s => (
+                <div key={s.id} className="group">
                   <button
                     onClick={() => void startSong(s.id, mode)}
-                    className="group flex w-full items-baseline gap-6 py-5 text-left transition-colors duration-150 hover:text-primary"
+                    className="flex w-full items-center gap-4 rounded-xl border border-transparent px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-px hover:border-border-strong hover:bg-surface"
                   >
-                    <span className="w-6 text-xs tabular-nums text-muted">
-                      {String(i + 1).padStart(2, '0')}
+                    <CoverTile song={s} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-body font-medium text-primary">{s.name}</span>
+                      <span className="mt-0.5 block text-caption text-muted">
+                        {s.bpm} BPM · {s.notes.length} 音
+                      </span>
                     </span>
-                    <span className="flex-1 text-base text-primary">{s.name}</span>
-                    <span className="text-xs tabular-nums text-muted">
-                      {s.bpm} BPM · {s.notes.length} 音
-                    </span>
-                    <span
-                      aria-hidden
-                      className="text-sm text-accent opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                    >
-                      开始 →
-                    </span>
+                    <IconChevronRight className="h-4 w-4 shrink-0 text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                   </button>
-                  {i < SONGS.length - 1 && (
-                    <hr className="border-border-subtle" />
-                  )}
-                </li>
-                ))}
-              </ol>
+                </div>
+              ))}
+            </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <GhostButton onClick={() => setScreen('import')}>导入乐谱 / MIDI</GhostButton>
-                <span className="text-xs text-muted">
-                  乐谱图片 AI 识别，或 MIDI 直传，校对后入库
-                </span>
-              </div>
-            </section>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <GhostButton onClick={() => setScreen('import')}>导入乐谱 / MIDI</GhostButton>
+              <span className="text-xs text-muted">
+                乐谱图片 AI 识别，或 MIDI 直传，校对后入库
+              </span>
+            </div>
+          </section>
           </div>
         )}
 
