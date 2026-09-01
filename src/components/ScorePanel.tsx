@@ -12,7 +12,7 @@ interface Props {
   onClose: () => void
 }
 
-const STRIP_H = 132
+const STRIP_H = 150
 
 export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null)
@@ -26,13 +26,20 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const sizeSvg = () => {
     const svg = hostRef.current?.querySelector('svg')
     if (!svg || sizedRef.current) return
-    const natW = parseFloat(svg.getAttribute('width') ?? '') || svg.getBoundingClientRect().width
-    const natH = parseFloat(svg.getAttribute('height') ?? '') || svg.getBoundingClientRect().height
-    if (!Number.isFinite(natW) || !Number.isFinite(natH) || natW === 0 || natH === 0) return
-    // abcjs 的 svg 不带 viewBox：直接改高度只会裁剪，必须显式补上才能等比缩放
-    svg.setAttribute('viewBox', `0 0 ${natW} ${natH}`)
-    const scale = STRIP_H / natH
-    svg.style.width = `${natW * scale}px`
+    // getBBox 量出全部已绘制内容（含越界的符干/符尾/加线）的真实边界，viewBox 精确贴合
+    let bb: { x: number; y: number; width: number; height: number }
+    try {
+      bb = svg.getBBox()
+    } catch {
+      return
+    }
+    if (bb.width === 0 || bb.height === 0) return
+    const margin = 10
+    const vbW = bb.width + margin * 2
+    const vbH = bb.height + margin * 2
+    svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)
+    const scale = STRIP_H / vbH
+    svg.style.width = `${vbW * scale}px`
     svg.style.height = `${STRIP_H}px`
     svg.style.display = 'block'
     sizedRef.current = true
@@ -51,8 +58,6 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
         staffwidth: width,
         paddingleft: 0,
         paddingright: 0,
-        paddingtop: 0,
-        paddingbottom: 0,
       })
     }
 
