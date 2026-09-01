@@ -36,7 +36,8 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       return
     }
     if (bb.width === 0 || bb.height === 0) return
-    const margin = 26
+    // 小边距防抗锯齿裁边即可：缩放以内容为主，谱面占满横条
+    const margin = 4
     const vbW = bb.width + margin * 2
     const vbH = bb.height + margin * 2
     svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)

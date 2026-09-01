@@ -38,8 +38,10 @@ await page.waitForTimeout(1200) // 等字体与二次测量
 const vb = await page.evaluate(() => ({
   viewBox: document.querySelector('.score-strip svg')?.getAttribute('viewBox'),
   par: document.querySelector('.score-strip svg')?.getAttribute('preserveAspectRatio'),
+  staffH: Math.round(document.querySelector('.abcjs-staff')?.getBoundingClientRect().height ?? 0),
+  staves: document.querySelectorAll('.score-strip .abcjs-staff').length,
 }))
-console.log('viewBox:', vb.viewBox, '| preserveAspectRatio:', vb.par)
+console.log('viewBox:', vb.viewBox, '| 谱表显示高度:', vb.staffH + 'px', '| 谱线条数:', vb.staves)
 
 await page.locator('.score-strip').screenshot({ path: '/tmp/strip.png' })
 execSync('sips -s format bmp /tmp/strip.png --out /tmp/strip.bmp >/dev/null 2>&1')
