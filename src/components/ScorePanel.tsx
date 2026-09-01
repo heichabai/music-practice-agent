@@ -43,6 +43,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
     const scale = STRIP_H / vbH
+    svg.style.maxWidth = 'none'
     svg.style.width = `${vbW * scale}px`
     svg.style.height = `${STRIP_H}px`
     svg.style.display = 'block'
