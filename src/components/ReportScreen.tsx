@@ -6,6 +6,7 @@ import { getHistoryBrief } from '../storage/sessionStore'
 import { TimingGauge } from './ui/TimingGauge'
 import { ProblemChip } from './ui/ProblemChip'
 import { PrimaryButton, GhostButton } from './ui/Button'
+import { IconSparkles } from './icons'
 
 interface Props {
   report: SessionReport
@@ -73,9 +74,10 @@ function CoachPanel({ report }: { report: SessionReport }) {
 
   return (
     <section className="mt-10">
-      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-        AI Coach
-      </p>
+      <div className="flex items-center gap-2">
+        <IconSparkles className="h-4 w-4 text-accent" />
+        <p className="text-micro font-medium uppercase text-muted">AI Coach</p>
+      </div>
 
       {reviewState === 'loading' && (
         <p className="mt-4 animate-pulse text-sm text-muted">教练正在分析你的表现…</p>
@@ -91,7 +93,9 @@ function CoachPanel({ report }: { report: SessionReport }) {
       )}
 
       {reviewState === 'done' && review !== null && (
-        <div className="mt-3">{renderLite(review)}</div>
+        <div className="mt-3 rounded-xl border border-border-subtle bg-surface px-5 py-4">
+          {renderLite(review)}
+        </div>
       )}
 
       {reviewState === 'done' && (
@@ -149,7 +153,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
     <div className="screen-enter w-full max-w-3xl pb-16">
       {/* Hero 命中率 */}
       <header className="pt-12 sm:pt-20">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        <p className="text-micro font-medium uppercase text-muted">
           Practice Report
         </p>
         <p className="mt-4 text-sm text-secondary">
@@ -171,7 +175,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
       {/* 三栏规格 */}
       <section className="mt-10 grid grid-cols-1 gap-10 sm:grid-cols-3 sm:gap-6">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          <p className="text-micro font-medium uppercase text-muted">
             Timing
           </p>
           {report.timingAvgBeats !== null ? (
@@ -184,7 +188,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
           )}
         </div>
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          <p className="text-micro font-medium uppercase text-muted">
             Hold
           </p>
           <p className="mt-3 text-3xl font-light tabular-nums text-primary sm:text-4xl">
@@ -199,7 +203,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
           </p>
         </div>
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          <p className="text-micro font-medium uppercase text-muted">
             Issues
           </p>
           <p className="mt-3 text-3xl font-light tabular-nums text-primary sm:text-4xl">
@@ -216,7 +220,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
         <>
           <hr className="mt-12 border-border-subtle" />
           <section className="mt-10">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            <p className="text-micro font-medium uppercase text-muted">
               Focus on
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
