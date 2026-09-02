@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useCountUp } from '../hooks/useCountUp'
 import type { ReactNode } from 'react'
 import type { SessionReport } from '../game/report'
 import { generatePracticePlan, generateReview, type PracticePlan } from '../ai/coach'
@@ -146,6 +147,7 @@ function CoachPanel({ report }: { report: SessionReport }) {
  * 再下方问题音 + pill 操作。无外框，凭留白与发丝线组织版面。
  */
 export function ReportScreen({ report, onRetry, onSelect }: Props) {
+  const countUp = useCountUp(report.accuracy, 900)
   const holdPct =
     report.holdAvgRatio !== null ? Math.min(100, report.holdAvgRatio * 100) : null
 
@@ -160,8 +162,8 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
           {report.songName} · {report.mode === 'wait' ? '等待式' : '自由式'} · {report.total} 音
         </p>
         <div className="mt-6 flex items-baseline gap-3">
-          <span className="text-7xl font-light leading-none tracking-tight tabular-nums text-primary sm:text-8xl">
-            {(report.accuracy * 100).toFixed(0)}
+          <span className="text-gradient-accent num-hero text-7xl leading-none tabular-nums sm:text-8xl">
+            {countUp ? (countUp * 100).toFixed(0) : '0'}
             <span className="text-secondary">%</span>
           </span>
         </div>

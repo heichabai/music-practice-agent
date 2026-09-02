@@ -258,7 +258,7 @@ export default function App() {
             <div className="mt-10 flex items-center gap-4">
               <PrimaryButton
                 onClick={() => void startSong(SONGS[0].id, mode)}
-                className="px-7 py-3"
+                className="bg-gradient-accent px-7 py-3 shadow-[0_6px_24px_rgb(245_158_11/0.3)] transition-shadow hover:shadow-[0_8px_32px_rgb(245_158_11/0.45)]"
               >
                 开始练习
                 <span aria-hidden>→</span>
@@ -321,7 +321,7 @@ export default function App() {
                     <div key={s.id} className="group relative">
                       <button
                         onClick={() => void startSong(s.id, mode)}
-                        className="flex w-full items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-px hover:border-accent/50 hover:bg-raised"
+                        className="sheen group flex w-full items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-raised"
                       >
                         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border-subtle text-xs font-semibold text-secondary">
                           {s.source === 'image' ? 'AI' : s.source === 'omr' ? 'OMR' : 'MIDI'}
@@ -360,7 +360,7 @@ export default function App() {
                 <div key={s.id} className="group">
                   <button
                     onClick={() => void startSong(s.id, mode)}
-                    className="flex w-full items-center gap-4 rounded-xl border border-transparent px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-px hover:border-border-strong hover:bg-surface"
+                    className="sheen group flex w-full items-center gap-4 rounded-xl border border-white/[0.05] bg-white/[0.025] px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:bg-white/[0.05] hover:shadow-panel"
                   >
                     <CoverTile song={s} />
                     <span className="min-w-0 flex-1">
@@ -388,7 +388,7 @@ export default function App() {
       {screen === 'play' && (
         <div className="screen-enter w-full max-w-4xl">
           {/* 极简 HUD：发丝下边框 + 细线进度条 */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border-subtle pb-4 text-sm max-sm:text-xs">
+          <div className="glass flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl px-4 py-3 text-sm max-sm:text-xs">
             <GhostButton onClick={() => setScreen('select')} className="px-3 py-1 text-xs">
               ‹ 退出
             </GhostButton>

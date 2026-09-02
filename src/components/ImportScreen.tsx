@@ -291,7 +291,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         <div className="mt-8 space-y-4">
           <div className="rounded-xl border border-accent/40 bg-surface p-5 transition-colors duration-200 hover:border-accent/70">
             <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent-dim text-accent">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-amber-400/90 to-orange-600/90 text-slate-950 shadow-[0_4px_16px_rgb(245_158_11/0.35)]">
               <IconScanFrame className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -329,7 +329,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
 
           <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
             <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-raised-2 text-info">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-sky-400/85 to-blue-600/85 text-white shadow-[0_4px_16px_rgb(56_189_248/0.3)]">
               <IconSparkles className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -362,7 +362,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
 
           <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
             <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-raised-2 text-secondary">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-slate-500/80 to-slate-700/80 text-white">
               <IconMidiKeys className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
