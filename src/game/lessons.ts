@@ -3,7 +3,7 @@ import type { Song } from '../types'
 export interface LessonStep {
   heading: string
   body: string
-  diagram?: 'keyboard' | 'staff' | 'fingers'
+  diagram?: 'keyboard' | 'staff' | 'fingers' | 'posture' | 'handshape' | 'strike' | 'bothhands'
 }
 
 export interface LessonTask {
@@ -79,6 +79,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '正确的坐姿',
         body: '琴凳坐前一半，双脚放平踩实；手肘大致与键盘同高，手腕放平不塌、不拱。身体离琴一拳远——放松，是弹琴的第一原则。',
+        diagram: 'posture',
       },
     ],
     task: {
@@ -130,7 +131,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '好的手型',
         body: '手指自然弯曲，像轻轻握住一个鸡蛋；用指腹（不是指尖）触键，拇指用外侧触键。手腕放平，与手背成一条线。',
-        diagram: 'fingers',
+        diagram: 'handshape',
       },
       {
         heading: '指法编号 1-5',
@@ -143,6 +144,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '抬指与击键',
         body: '从掌关节把手指抬起，垂直落键，力度均匀；弹完手指自然贴在键上放松。不要用手腕压，也不要敲出噪音——"抬得从容，落得坚定"。',
+        diagram: 'strike',
       },
     ],
     task: {
@@ -195,6 +197,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '两条平行铁轨',
         body: '双手五指位相隔一个八度，各自负责自己的音区，像两条平行铁轨——互不干扰，却一起向前。',
+        diagram: 'bothhands',
       },
       {
         heading: '从"同音齐奏"开始',

@@ -7,7 +7,15 @@ import type { Song } from '../../types'
 import { PrimaryButton, GhostButton } from '../ui/Button'
 import { IconChevronRight, IconSparkles } from '../icons'
 import { TaskKeyboard } from './TaskKeyboard'
-import { DiagramKeyboard, DiagramFingers, DiagramStaff } from './Diagrams'
+import {
+  DiagramKeyboard,
+  DiagramFingers,
+  DiagramStaff,
+  DiagramHandShape,
+  DiagramStrike,
+  DiagramBothHands,
+  DiagramPosture,
+} from './Diagrams'
 
 interface Props {
   lesson: Lesson
@@ -17,9 +25,13 @@ interface Props {
   onNextLesson: (lesson: Lesson) => void
 }
 
-function Diagram({ kind }: { kind: 'keyboard' | 'staff' | 'fingers' }) {
+function Diagram({ kind }: { kind: 'keyboard' | 'staff' | 'fingers' | 'posture' | 'handshape' | 'strike' | 'bothhands' }) {
   if (kind === 'keyboard') return <DiagramKeyboard />
   if (kind === 'staff') return <DiagramStaff />
+  if (kind === 'posture') return <DiagramPosture />
+  if (kind === 'handshape') return <DiagramHandShape />
+  if (kind === 'strike') return <DiagramStrike />
+  if (kind === 'bothhands') return <DiagramBothHands />
   return <DiagramFingers />
 }
 
