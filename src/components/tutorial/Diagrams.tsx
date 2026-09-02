@@ -139,10 +139,64 @@ export function DiagramFingers() {
   )
 }
 
-/** 手型插画（AI 生成） */
+/** 手型：俯视图（五指落键 + 掌心拱起虚线） */
 export function DiagramHandShape() {
+  const WW = 40
+  const keyX = (i: number) => 20 + i * WW
+  const tips = [
+    { n: 1, cx: 40, cy: 142 },
+    { n: 2, cx: 102, cy: 130 },
+    { n: 3, cx: 142, cy: 128 },
+    { n: 4, cx: 182, cy: 130 },
+    { n: 5, cx: 222, cy: 134 },
+  ]
   return (
-    <img src="/tutorial/handshape.png" alt="拱形手型示意" className="w-full max-w-sm rounded-lg" />
+    <svg viewBox="0 0 320 216" className="w-full max-w-sm">
+      {Array.from({ length: 7 }, (_, i) => (
+        <rect
+          key={i}
+          x={keyX(i)}
+          y="120"
+          width={WW}
+          height="50"
+          rx="3"
+          fill="#e8e8ec"
+          stroke="#0a0a0b"
+          strokeWidth="1.2"
+        />
+      ))}
+      {[0, 1, 3, 4, 5].map(i => (
+        <rect key={`b${i}`} x={keyX(i) + 28} y="120" width="22" height="30" rx="3" fill="#151518" />
+      ))}
+      <text x={keyX(0) + WW / 2} y="184" textAnchor="middle" fontSize="11" fill="#f59e0b">C4</text>
+      <text x={keyX(2) + WW / 2} y="184" textAnchor="middle" fontSize="11" fill="#9a9aa6">E4</text>
+      <text x={keyX(4) + WW / 2} y="184" textAnchor="middle" fontSize="11" fill="#9a9aa6">G4</text>
+
+      <path
+        d="M 92 128 C 96 84, 128 60, 164 60 C 202 60, 230 84, 232 128 L 232 136 C 232 148, 92 148, 92 136 Z"
+        fill="#f0f0f2"
+        opacity="0.13"
+        stroke="#f0f0f2"
+        strokeWidth="1.6"
+      />
+      <rect x="142" y="34" width="46" height="26" rx="12" fill="#f0f0f2" opacity="0.13" stroke="#f0f0f2" strokeWidth="1.6" />
+
+      <ellipse cx="162" cy="102" rx="36" ry="24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 5" />
+      <text x="162" y="20" textAnchor="middle" fontSize="12" fill="#f59e0b">
+        手心拱起——像握着鸡蛋的空腔
+      </text>
+      <path d="M 162 26 L 162 48 m 0 0 l -5 -7 m 5 7 l 5 -7" stroke="#f59e0b" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+
+      {tips.map(t => (
+        <g key={t.n}>
+          <circle cx={t.cx} cy={t.cy} r="13" fill="#f0f0f2" />
+          <text x={t.cx} y={t.cy + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill="#0a0a0b">{t.n}</text>
+        </g>
+      ))}
+      <circle cx="142" cy="128" r="18" fill="none" stroke="#38bdf8" strokeWidth="1.6" />
+      <path d="M 156 118 l 30 -26" stroke="#38bdf8" strokeWidth="1.3" />
+      <text x="190" y="88" fontSize="12" fill="#38bdf8">指腹触键</text>
+    </svg>
   )
 }
 
