@@ -36,9 +36,9 @@
   --color-miss: #fb923c;
   --color-info: #38bdf8;
 
-  /* ---------- 字体族 ---------- */
+  /* ---------- 字体族（Inter 管拉丁与数字，中文回落苹方） ---------- */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Segoe UI', sans-serif;
   --font-mono:
     'SF Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -86,6 +86,81 @@ body,
 body {
   @apply bg-base text-primary font-sans antialiased;
   text-underline-offset: 3px;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- V2 底座：极光底纹 + 细噪点（固定层，位于内容之下） ---------- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 520px at 10% -12%, rgb(245 158 11 / 0.075), transparent 62%),
+    radial-gradient(820px 520px at 90% 112%, rgb(56 189 248 / 0.055), transparent 62%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- V2 组件类：玻璃 / 渐变 / 发光 ---------- */
+.glass {
+  background: rgb(23 23 27 / 0.55);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.text-gradient-accent {
+  background: linear-gradient(115deg, #fde68a 5%, #f59e0b 55%, #ea580c 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-gradient-accent {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 45%, #ea580c 100%);
+}
+
+.num-hero {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 34px rgb(245 158 11 / 0.22);
+}
+
+/* hover 光泽扫过（配合 group 使用） */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgb(255 255 255 / 0.06) 50%,
+    transparent 60%
+  );
+  transition: transform 650ms var(--ease-soft);
+  pointer-events: none;
+}
+.group:hover .sheen::after {
+  transform: translateX(120%);
 }
 
 /* ---------- 页面切换：200ms 渐入 + 上移 8px ---------- */

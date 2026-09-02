@@ -240,17 +240,17 @@ export default function App() {
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-base px-4 py-8 text-primary">
+    <div className="flex min-h-screen flex-col items-center px-4 py-8 text-primary">
       {screen === 'select' && (
         <div className="screen-enter w-full max-w-3xl">
           {/* Hero：apple 式大字 + pill CTA，留白充足 */}
           <header className="pt-12 sm:pt-20">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            <p className="text-micro font-medium uppercase text-muted">
               Piano Practice · W2
             </p>
-            <h1 className="mt-6 text-5xl font-light leading-[1.05] tracking-tight text-primary sm:text-6xl">
+            <h1 className="text-display mt-6 font-semibold text-primary sm:text-6xl">
               琴键陪练
-              <span className="text-accent-strong"> Agent.</span>
+              <span className="text-gradient-accent"> Agent.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed text-secondary">
               一处安静的练习场。逐音反馈，跟随霓虹音符学习弹琴。
