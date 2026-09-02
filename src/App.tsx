@@ -120,7 +120,17 @@ export default function App() {
         return next
       })
       const engine = engineRef.current
-      if (!engine) return
+      if (engine === null) {
+        if (synthOn) {
+          void playPianoNote(midi, 0.45).then(usedPiano => {
+            if (!usedPiano && synthRef.current) {
+              const freq = Tone.Frequency(midi, 'midi').toFrequency()
+              synthRef.current.triggerAttackRelease(freq, 0.3, Tone.getContext().currentTime + 0.005)
+            }
+          })
+        }
+        return
+      }
       const result = engine.press(midi)
       if (result === 'hit' && synthOn) {
         void playPianoNote(midi, 0.45).then(usedPiano => {
@@ -257,9 +267,9 @@ export default function App() {
     return () => cancelAnimationFrame(raf)
   }, [screen])
 
-  // 电脑键盘兜底输入
+  // 电脑键盘兜底输入（练习页 + 课程页互动任务）
   useEffect(() => {
-    if (screen !== 'play') return
+    if (screen !== 'play' && screen !== 'lesson') return
     const down = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
       const midi = KEYBOARD_MAP[e.code]
