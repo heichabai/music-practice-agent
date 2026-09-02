@@ -19,8 +19,12 @@ import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
 import { playPianoNote, preloadPiano } from './audio/piano'
+import { LESSONS, type Lesson } from './game/lessons'
+import { markLessonComplete } from './storage/tutorialStore'
+import { TutorialScreen } from './components/tutorial/TutorialScreen'
+import { LessonScreen } from './components/tutorial/LessonScreen'
 
-type Screen = 'select' | 'play' | 'report' | 'import' | 'editor'
+type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson'
 
 // 电脑键盘 → midi（白键 A S D F G H J K，黑键 W E T Y U）
 const KEYBOARD_MAP: Record<string, number> = {
@@ -87,6 +91,10 @@ export default function App() {
     imageUrl?: string
   } | null>(null)
   const [showScore, setShowScore] = useState(true)
+  const [selectTab, setSelectTab] = useState<'learn' | 'practice'>('learn')
+  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
+  const [fromLessonId, setFromLessonId] = useState<string | null>(null)
+  const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -95,12 +103,16 @@ export default function App() {
   const targetSigRef = useRef('')
 
   const allSongs = useMemo(() => [...SONGS, ...customSongs], [customSongs])
-  const song = useMemo(() => allSongs.find(s => s.id === songId) ?? allSongs[0], [allSongs, songId])
+  const song = useMemo(
+    () => lessonSongOverride ?? allSongs.find(s => s.id === songId) ?? allSongs[0],
+    [allSongs, songId, lessonSongOverride],
+  )
   const layout = useMemo(() => KeyboardLayout.fromNotes(song.notes), [song])
   const { ref: playAreaRef, width } = useElementWidth<HTMLDivElement>()
 
   const noteOn = useCallback(
     (midi: number) => {
+      window.dispatchEvent(new CustomEvent('app-note', { detail: { midi, on: true } }))
       setPressedSet(prev => {
         if (prev.has(midi)) return prev
         const next = new Set(prev)
@@ -127,6 +139,7 @@ export default function App() {
   )
 
   const noteOff = useCallback((midi: number) => {
+    window.dispatchEvent(new CustomEvent('app-note', { detail: { midi, on: false } }))
     setPressedSet(prev => {
       if (!prev.has(midi)) return prev
       const next = new Set(prev)
@@ -146,9 +159,40 @@ export default function App() {
 
   const { status: midiStatus, deviceName } = useMidiInput(handleNote)
 
+  const startLessonPractice = useCallback(
+    async (s: Song, lessonId: string) => {
+      setLessonSongOverride(s)
+      setFromLessonId(lessonId)
+      engineRef.current = new GameEngine(s, mode)
+      finishedRef.current = false
+      targetSigRef.current = ''
+      setTargetSet(new Set())
+      setPressedSet(new Set())
+      setWrong(null)
+      setReport(null)
+      try {
+        await Tone.start()
+        Tone.getContext().lookAhead = 0.005
+        preloadPiano()
+        if (!synthRef.current) {
+          synthRef.current = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'triangle' },
+          }).toDestination()
+          synthRef.current.volume.value = -6
+        }
+      } catch {
+        // 音频初始化失败不影响练习
+      }
+      setScreen('play')
+    },
+    [mode],
+  )
+
   const startSong = useCallback(
     async (id: string, practiceMode: PracticeMode) => {
       setSongId(id)
+      setLessonSongOverride(null)
+      setFromLessonId(null)
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
       engineRef.current = new GameEngine(s, practiceMode)
       finishedRef.current = false
@@ -269,6 +313,38 @@ export default function App() {
             </div>
           </header>
 
+          {/* 学习 / 练习 双 tab */}
+          <div className="glass mt-12 inline-flex rounded-full p-1">
+            <button
+              onClick={() => setSelectTab('learn')}
+              className={`rounded-full px-6 py-2 text-body transition-all duration-200 ${
+                selectTab === 'learn' ? 'bg-gradient-accent font-semibold text-slate-950 shadow-[0_2px_12px_rgb(245_158_11/0.35)]' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              学习
+            </button>
+            <button
+              onClick={() => setSelectTab('practice')}
+              className={`rounded-full px-6 py-2 text-body transition-all duration-200 ${
+                selectTab === 'practice' ? 'bg-gradient-accent font-semibold text-slate-950 shadow-[0_2px_12px_rgb(245_158_11/0.35)]' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              练习
+            </button>
+          </div>
+
+          {selectTab === 'learn' ? (
+            <section className="mt-8 pb-16">
+              <TutorialScreen
+                lessons={LESSONS}
+                onOpenLesson={lesson => {
+                  setActiveLesson(lesson)
+                  setScreen('lesson')
+                }}
+              />
+            </section>
+          ) : (
+          <>
           <hr className="mt-20 border-border-subtle" />
 
           {/* MIDI 状态行 */}
@@ -382,6 +458,8 @@ export default function App() {
               </span>
             </div>
           </section>
+          </>
+          )}
           </div>
         )}
 
@@ -456,6 +534,21 @@ export default function App() {
         </div>
       )}
 
+      {screen === 'lesson' && activeLesson !== null && (
+        <div className="screen-enter flex w-full justify-center">
+          <LessonScreen
+            lesson={activeLesson}
+            nextLesson={LESSONS[activeLesson.order] ?? null}
+            onBack={() => setScreen('select')}
+            onPractice={(s, lessonId) => void startLessonPractice(s, lessonId)}
+            onNextLesson={lesson => {
+              setActiveLesson(lesson)
+              window.scrollTo({ top: 0 })
+            }}
+          />
+        </div>
+      )}
+
       {screen === 'import' && (
         <div className="screen-enter flex w-full justify-center">
           <ImportScreen
@@ -485,6 +578,37 @@ export default function App() {
               setScreen('import')
             }}
           />
+        </div>
+      )}
+
+      {screen === 'report' && report && fromLessonId !== null && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {(() => {
+            const lesson = LESSONS.find(l => l.id === fromLessonId) ?? null
+            const next = lesson !== null ? LESSONS[lesson.order] ?? null : null
+            return (
+              <>
+                <span className="rounded-full bg-hit/15 px-4 py-2 text-body text-hit">
+                  ✓ {lesson?.title ?? '课程'} 练习完成
+                </span>
+                <PrimaryButton
+                  onClick={() => {
+                    if (lesson !== null) markLessonComplete(lesson.id)
+                    if (next !== null) {
+                      setActiveLesson(next)
+                      setFromLessonId(null)
+                      setScreen('lesson')
+                    } else {
+                      setFromLessonId(null)
+                      setScreen('select')
+                    }
+                  }}
+                >
+                  {next !== null ? `继续：第 ${next.order} 课 ${next.title}` : '返回课程'}
+                </PrimaryButton>
+              </>
+            )
+          })()}
         </div>
       )}
 
