@@ -128,8 +128,8 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
 
       // 背景
       const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
-      bg.addColorStop(0, '#0a0a0b')
-      bg.addColorStop(1, '#111114')
+      bg.addColorStop(0, '#f7f8fa')
+      bg.addColorStop(1, '#f0f0f3')
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, width, CANVAS_H)
 
@@ -138,8 +138,8 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
         width * 0.5, CANVAS_H * 0.7, 0,
         width * 0.5, CANVAS_H * 0.7, Math.max(width, CANVAS_H) * 0.7,
       )
-      halo.addColorStop(0, 'rgba(255,255,255,0.015)')
-      halo.addColorStop(1, 'rgba(0,0,0,0.4)')
+      halo.addColorStop(0, 'rgba(0,0,0,0.01)')
+      halo.addColorStop(1, 'rgba(0,0,0,0.02)')
       ctx.fillStyle = halo
       ctx.fillRect(0, 0, width, CANVAS_H)
 
@@ -243,7 +243,7 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
       }
 
       // 判定线
-      ctx.fillStyle = 'rgba(148,163,184,0.5)'
+      ctx.fillStyle = 'rgba(100,116,139,0.5)'
       ctx.fillRect(0, hitY, width, 1.5)
 
       raf = requestAnimationFrame(draw)

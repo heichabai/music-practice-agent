@@ -10,20 +10,20 @@
  * 动效   ：fast 120ms / base 200ms / slow 300ms；ease-soft 缓出曲线
  * ============================================================ */
 @theme {
-  /* ---------- 背景四层 ---------- */
-  --color-base: #0a0a0b;
-  --color-surface: #101013;
-  --color-raised: #17171b;
-  --color-raised-2: #1e1e24;
+  /* ---------- 背景四层（Duolingo 浅色） ---------- */
+  --color-base: #ffffff;
+  --color-surface: #f7f7f9;
+  --color-raised: #f0f0f3;
+  --color-raised-2: #e5e5ea;
 
   /* ---------- 边框两级 ---------- */
-  --color-border-subtle: #232329;
-  --color-border-strong: #31313a;
+  --color-border-subtle: #e5e5ea;
+  --color-border-strong: #d4d4dc;
 
   /* ---------- 文字三级 ---------- */
-  --color-primary: #f0f0f2;
-  --color-secondary: #9a9aa6;
-  --color-muted: #5f5f6a;
+  --color-primary: #3c3c43;
+  --color-secondary: #77777f;
+  --color-muted: #aeaea8;
 
   /* ---------- 品牌强调（琥珀聚光灯） ---------- */
   --color-accent: #f59e0b;
@@ -101,8 +101,8 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(900px 520px at 10% -12%, rgb(245 158 11 / 0.075), transparent 62%),
-    radial-gradient(820px 520px at 90% 112%, rgb(56 189 248 / 0.055), transparent 62%);
+    radial-gradient(900px 520px at 10% -12%, rgb(28 176 246 / 0.07), transparent 62%),
+    radial-gradient(820px 520px at 90% 112%, rgb(88 204 2 / 0.05), transparent 62%);
 }
 
 body::after {
@@ -111,20 +111,20 @@ body::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: 0.02;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ---------- V2 组件类：玻璃 / 渐变 / 发光 ---------- */
 .glass {
-  background: rgb(23 23 27 / 0.55);
+  background: rgb(255 255 255 / 0.72);
   backdrop-filter: blur(14px) saturate(1.25);
   -webkit-backdrop-filter: blur(14px) saturate(1.25);
-  border: 1px solid rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(0 0 0 / 0.05);
 }
 
 .text-gradient-accent {
-  background: linear-gradient(115deg, #fde68a 5%, #f59e0b 55%, #ea580c 95%);
+  background: linear-gradient(115deg, #1CB0F6 5%, #58CC02 55%, #1CB0F6 95%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -209,27 +209,27 @@ body::after {
 
 /* ---------- 焦点环：全站可交互元素 focus-visible，accent 2px / offset 2px ---------- */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid #1CB0F6;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* ---------- 乐谱条（暗色主题） ---------- */
 .score-strip svg path {
-  stroke: #3f3f49;
+  stroke: #b0b0bc;
 }
 .score-strip svg text {
-  fill: #8b8b95;
+  fill: #77777f;
 }
 .score-strip svg .abcjs-note path[stroke] {
-  stroke: #6a6a75;
+  stroke: #8a8a95;
   fill: none;
 }
 .score-strip svg .abcjs-note path:not([stroke]) {
-  fill: #d4d4dc;
+  fill: #4a4a55;
 }
 .score-strip svg .abcjs-rest path {
-  fill: #5a5a63;
+  fill: #aeaea8;
 }
 .score-strip .abcjs-note.score-current path:not([stroke]) {
   fill: var(--color-accent) !important;

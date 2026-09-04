@@ -100,8 +100,8 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, CANVAS_H)
 
-      // 背景：近纯黑（极简外壳）
-      ctx.fillStyle = '#0a0a0b'
+      // 背景：浅色
+      ctx.fillStyle = '#f7f8fa'
       ctx.fillRect(0, 0, width, CANVAS_H)
 
       // 中央微亮晕影（相机感）：稍微提亮画布中央，让粒子/音符更突出
@@ -113,8 +113,8 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         CANVAS_H * 0.55,
         Math.max(width, CANVAS_H) * 0.85,
       )
-      halo.addColorStop(0, 'rgba(255,255,255,0.02)')
-      halo.addColorStop(1, 'rgba(0,0,0,0.55)')
+      halo.addColorStop(0, 'rgba(0,0,0,0.015)')
+      halo.addColorStop(1, 'rgba(0,0,0,0.03)')
       ctx.fillStyle = halo
       ctx.fillRect(0, 0, width, CANVAS_H)
 
@@ -313,7 +313,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
       const waitAlpha = engine.waiting
         ? 0.32 + 0.12 * Math.sin(now / 240)
         : 0.16
-      ctx.fillStyle = `rgba(237,237,238,${waitAlpha})`
+      ctx.fillStyle = `rgba(100,116,139,${waitAlpha})`
       ctx.fillRect(0, hitY, width, 1)
 
       raf = requestAnimationFrame(draw)
