@@ -118,6 +118,9 @@ export default function App() {
   const [handFilter, setHandFilter] = useState<'R' | 'L' | 'both'>('both')
   const [tempoScale, setTempoScale] = useState(1)
   const [combo, setCombo] = useState(0)
+  const [loopA, setLoopA] = useState<number | null>(null)
+  const [loopB, setLoopB] = useState<number | null>(null)
+  const [timingLabel, setTimingLabel] = useState<{ text: string; kind: 'perfect' | 'early' | 'late'; id: number } | null>(null)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
   const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
 
@@ -162,11 +165,33 @@ export default function App() {
 
       if (result === 'hit') {
         setCombo(prev => prev + 1)
+
+        // 实时节奏反馈（自由式）
+        if (engine.mode === 'free') {
+          const group = engine.currentGroup()
+          const noteIdx = group.find(i => engine.song.notes[i].midi === midi)
+          if (noteIdx !== undefined) {
+            const offset = engine.judgements[noteIdx]?.offsetBeats
+            if (offset !== null && offset !== undefined) {
+              const abs = Math.abs(offset)
+              const id = Date.now()
+              if (abs < 0.1) setTimingLabel({ text: '完美', kind: 'perfect', id })
+              else if (offset < 0) setTimingLabel({ text: `稍快 ${Math.round(Math.abs(offset) * 1000 / engine.song.bpm * 60)}ms`, kind: 'early', id })
+              else setTimingLabel({ text: `稍慢 ${Math.round(offset * 1000 / engine.song.bpm * 60)}ms`, kind: 'late', id })
+              window.setTimeout(() => {
+                setTimingLabel(prev => (prev !== null && prev.id === id ? null : prev))
+              }, 1200)
+            }
+          }
+        }
         applyGamification(gamifyNoteHit(gamification, midi))
         const decision = adaptiveRef.current?.onHit(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       } else if (result === 'wrong') {
         setCombo(0)
+      setLoopA(null)
+      setLoopB(null)
+      setTimingLabel(null)
         const decision = adaptiveRef.current?.onError(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       }
@@ -259,6 +284,9 @@ export default function App() {
       setWrong(null)
       setReport(null)
       setCombo(0)
+      setLoopA(null)
+      setLoopB(null)
+      setTimingLabel(null)
       try {
         await Tone.start()
         Tone.getContext().lookAhead = 0.005
@@ -331,6 +359,23 @@ export default function App() {
       const engine = engineRef.current
       if (engine) {
         engine.update((dt * engine.song.bpm) / 60)
+
+        // 段落循环：到达 B 点回到 A 点
+        if (loopA !== null && loopB !== null && engine.songTime >= loopB) {
+          engine.songTime = loopA
+          engine.cursor = 0
+          engine.waiting = false
+          for (let li = 0; li < engine.song.notes.length; li++) {
+            if (engine.song.notes[li].time >= loopA) {
+              engine.cursor = li
+              break
+            }
+          }
+          for (let li = 0; li < engine.song.notes.length; li++) {
+            engine.states[li] = engine.song.notes[li].time < loopA ? 'hit' : 'pending'
+          }
+        }
+
         const h = engine.hud()
         setHud(prev => (prev && sameHud(prev, h) ? prev : h))
         if (now - lastTargetCheck > 120) {
@@ -686,6 +731,35 @@ export default function App() {
             >
               乐谱 {showScore ? '开' : '关'}
             </button>
+            {/* 段落循环 */}
+            {loopA === null ? (
+              <button
+                onClick={() => {
+                  const t = engineRef.current?.songTime ?? 0
+                  setLoopA(Math.max(0, t))
+                }}
+                className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+              >
+                设 A 点
+              </button>
+            ) : loopB === null ? (
+              <button
+                onClick={() => {
+                  const t = engineRef.current?.songTime ?? 0
+                  setLoopB(Math.max(loopA + 1, t))
+                }}
+                className="rounded-full border-accent/50 bg-accent/10 px-3 py-1 text-xs text-accent-strong"
+              >
+                设 B 点（循环）
+              </button>
+            ) : (
+              <button
+                onClick={() => { setLoopA(null); setLoopB(null) }}
+                className="rounded-full border-accent/60 bg-accent/15 px-3 py-1 text-xs font-medium text-accent-strong"
+              >
+                循环中 · 取消
+              </button>
+            )}
           </div>
 
           {/* 乐谱条：单行横向滚动，跟随进度 */}
@@ -712,7 +786,16 @@ export default function App() {
           </div>
 
           <p className="mt-5 text-center text-xs text-muted">
-            {mode === 'wait'
+            {timingLabel !== null ? (
+              <span
+                className={`font-bold ${
+                  timingLabel.kind === 'perfect' ? 'text-hit' :
+                  timingLabel.kind === 'early' ? 'text-info' : 'text-miss'
+                }`}
+              >
+                {timingLabel.text}
+              </span>
+            ) : mode === 'wait'
               ? hud?.waiting
                 ? '弹奏亮起的目标键 · 弹对才前进'
                 : '音符下落中…'
