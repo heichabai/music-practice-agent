@@ -1,8 +1,8 @@
 import type { PracticeMode } from '../types'
 
 /**
- * 自适应练习引擎：
- * 观察实时指标，输出调整指令。纯逻辑，无 UI 依赖。
+ * 自适应练习引擎（纯建议，不自动调整）：
+ * 观察实时指标，输出提示信息。速度和模式由用户自主选择，AI 只做教练式建议。
  */
 
 export interface AdaptiveMetrics {
@@ -11,22 +11,28 @@ export interface AdaptiveMetrics {
   windowSize: number
   consecutiveCorrect: number
   consecutiveWrong: number
-  lastNoteMidi: number | null
   errorCounts: Map<number, number>
 }
 
+export type AdaptiveAction =
+  | 'focus-note'
+  | 'suggest-speed-up'
+  | 'suggest-slow-down'
+  | 'suggest-free'
+  | 'suggest-wait'
+  | 'suggest-next'
+  | 'encourage'
+  | 'none'
+
 export interface AdaptiveDecision {
-  action: 'speed-up' | 'slow-down' | 'focus-note' | 'suggest-free' | 'suggest-wait' | 'suggest-next' | 'none'
+  action: AdaptiveAction
   value?: number
   message: string
 }
 
-const SPEED_UP_THRESHOLD = 0.9
-const SLOW_DOWN_THRESHOLD = 0.6
+const GOOD_THRESHOLD = 0.9
+const STRUGGLE_THRESHOLD = 0.6
 const WINDOW_SIZE = 8
-const BPM_STEP = 5
-const MIN_BPM = 40
-const MAX_BPM = 200
 const FOCUS_NOTE_ERROR_THRESHOLD = 3
 
 export class AdaptiveEngine {
@@ -42,14 +48,6 @@ export class AdaptiveEngine {
     private mode: PracticeMode,
   ) {}
 
-  get currentBpm(): number {
-    return this.bpm
-  }
-
-  get currentMode(): PracticeMode {
-    return this.mode
-  }
-
   /** 每次命中调用 */
   onHit(_midi: number, beat: number): AdaptiveDecision | null {
     this.currentBeat = beat
@@ -57,7 +55,7 @@ export class AdaptiveEngine {
     if (this.hitsWindow.length > WINDOW_SIZE) this.hitsWindow.shift()
     this.consecutiveCorrect++
     this.consecutiveWrong = 0
-    if (this.lastDecisionBeat > 0 && beat - this.lastDecisionBeat < 4) return null
+    if (this.lastDecisionBeat > 0 && beat - this.lastDecisionBeat < 6) return null
     return this.evaluate()
   }
 
@@ -69,11 +67,10 @@ export class AdaptiveEngine {
     this.consecutiveCorrect = 0
     this.consecutiveWrong++
     this.errorCounts.set(midi, (this.errorCounts.get(midi) ?? 0) + 1)
-    if (this.lastDecisionBeat > 0 && beat - this.lastDecisionBeat < 4) return null
+    if (this.lastDecisionBeat > 0 && beat - this.lastDecisionBeat < 6) return null
     return this.evaluate()
   }
 
-  /** 外部调整 BPM/模式后同步 */
   sync(bpm: number, mode: PracticeMode): void {
     this.bpm = bpm
     this.mode = mode
@@ -87,17 +84,15 @@ export class AdaptiveEngine {
       windowSize: this.hitsWindow.length,
       consecutiveCorrect: this.consecutiveCorrect,
       consecutiveWrong: this.consecutiveWrong,
-      lastNoteMidi: null,
       errorCounts: this.errorCounts,
     }
   }
 
   private evaluate(): AdaptiveDecision | null {
     if (this.hitsWindow.length < WINDOW_SIZE) return null
-
     const accuracy = this.hitsWindow.filter(Boolean).length / this.hitsWindow.length
 
-    // 热点音符：同一音错 3 次以上
+    // 热点音符：同一音错 3 次
     for (const [midi, count] of this.errorCounts) {
       if (count >= FOCUS_NOTE_ERROR_THRESHOLD) {
         this.lastDecisionBeat = this.currentBeat
@@ -105,62 +100,58 @@ export class AdaptiveEngine {
         return {
           action: 'focus-note',
           value: midi,
-          message: `这个音容易错，多注意一下`,
+          message: '这个音容易错，多注意一下',
         }
       }
     }
 
-    // 命中率 > 90% 且连续对 8 音 → 提速
-    if (accuracy >= SPEED_UP_THRESHOLD && this.consecutiveCorrect >= WINDOW_SIZE) {
-      if (this.bpm < MAX_BPM) {
-        this.bpm = Math.min(MAX_BPM, this.bpm + BPM_STEP)
-        this.lastDecisionBeat = this.currentBeat
-        this.hitsWindow = []
-        return {
-          action: 'speed-up',
-          value: this.bpm,
-          message: `状态很好，提速至 ${this.bpm} BPM`,
-        }
-      }
+    // 表现很好 → 建议提速（不自动调，只提示）
+    if (accuracy >= GOOD_THRESHOLD && this.consecutiveCorrect >= WINDOW_SIZE) {
+      this.lastDecisionBeat = this.currentBeat
+      this.hitsWindow = []
       if (this.mode === 'wait') {
-        this.mode = 'free'
-        this.lastDecisionBeat = this.currentBeat
-        this.hitsWindow = []
         return {
           action: 'suggest-free',
-          message: '认音已经很稳了，试试自由式练节奏',
+          message: '认音已经很稳了，可以试试自由式练节奏',
         }
       }
       if (accuracy === 1) {
-        this.lastDecisionBeat = this.currentBeat
-        this.hitsWindow = []
         return {
           action: 'suggest-next',
-          message: '完美通过，可以挑战下一首了',
+          message: '完美通过！可以挑战下一首了',
         }
+      }
+      return {
+        action: 'suggest-speed-up',
+        value: this.bpm + 5,
+        message: `状态很好，可以试试提速到 ${this.bpm + 5} BPM`,
       }
     }
 
-    // 命中率 < 60% 且连续错 3 音 → 降速
-    if (accuracy <= SLOW_DOWN_THRESHOLD && this.consecutiveWrong >= 3) {
+    // 遇到困难 → 建议降速或切模式（不自动调，只提示）
+    if (accuracy <= STRUGGLE_THRESHOLD && this.consecutiveWrong >= 3) {
+      this.lastDecisionBeat = this.currentBeat
+      this.hitsWindow = []
       if (this.mode === 'free') {
-        this.mode = 'wait'
-        this.lastDecisionBeat = this.currentBeat
-        this.hitsWindow = []
         return {
           action: 'suggest-wait',
           message: '先用等待式稳一下认音',
         }
       }
-      if (this.bpm > MIN_BPM) {
-        this.bpm = Math.max(MIN_BPM, this.bpm - BPM_STEP)
-        this.lastDecisionBeat = this.currentBeat
-        this.hitsWindow = []
-        return {
-          action: 'slow-down',
-          value: this.bpm,
-          message: `降速至 ${this.bpm} BPM，慢慢来`,
-        }
+      return {
+        action: 'suggest-slow-down',
+        value: Math.max(40, this.bpm - 5),
+        message: `节奏有点跟不上，可以降速到 ${Math.max(40, this.bpm - 5)} BPM 试试`,
+      }
+    }
+
+    // 恢复正常（从连续错误中走出来）
+    if (this.consecutiveCorrect >= 4 && this.lastDecisionBeat > 0) {
+      this.lastDecisionBeat = this.currentBeat
+      this.hitsWindow = []
+      return {
+        action: 'encourage',
+        message: '稳住了，保持这个感觉',
       }
     }
 

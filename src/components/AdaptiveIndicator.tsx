@@ -9,12 +9,13 @@ export function AdaptiveIndicator({ decision, onDismiss }: Props) {
   if (decision === null) return null
 
   const icon =
-    decision.action === 'speed-up' ? '⚡' :
-    decision.action === 'slow-down' ? '🐌' :
+    decision.action === 'suggest-speed-up' ? '💡' :
+    decision.action === 'suggest-slow-down' ? '💡' :
     decision.action === 'focus-note' ? '🎯' :
     decision.action === 'suggest-free' ? '🎹' :
     decision.action === 'suggest-wait' ? '⏸️' :
-    decision.action === 'suggest-next' ? '🎓' : '✨'
+    decision.action === 'suggest-next' ? '🎓' :
+    decision.action === 'encourage' ? '💪' : '✨'
 
   return (
     <button
