@@ -311,11 +311,15 @@ export default function App() {
       setLessonSongOverride(null)
       setFromLessonId(null)
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
-      const filtered: typeof s = {
+      let filtered: typeof s = {
         ...s,
         notes: filter && filter !== 'both'
           ? s.notes.filter(n => n.hand === filter || n.hand === undefined)
           : s.notes,
+      }
+      // 声部过滤后为空（如右手曲选了左手）→ 回退全曲
+      if (filtered.notes.length === 0) {
+        filtered = { ...s }
       }
       if (scale !== undefined && scale !== 1) {
         filtered.bpm = Math.round(s.bpm * scale)

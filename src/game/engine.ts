@@ -46,10 +46,10 @@ export class GameEngine {
   private held = new Map<number, HeldNote>()
 
   constructor(song: Song, mode: PracticeMode = 'wait', leadInBeats = 2) {
-    this.song = song
+    this.song = song.notes.length > 0 ? song : { ...song, notes: [{ midi: 60, time: 0, duration: 1 }] }
     this.mode = mode
-    this.states = song.notes.map(() => 'pending' as NoteState)
-    this.judgements = song.notes.map(() => ({
+    this.states = this.song.notes.map(() => 'pending' as NoteState)
+    this.judgements = this.song.notes.map(() => ({
       verdict: null,
       offsetBeats: null,
       holdRatio: null,
