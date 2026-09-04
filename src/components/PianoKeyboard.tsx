@@ -10,8 +10,6 @@ interface Props {
   pressedSet: Set<number>
   targetSet: Set<number>
   wrong: { midi: number; id: number } | null
-  /** midi → 指法编号（目标键显示 1-5） */
-  fingerMap?: Map<number, number>
 }
 
 /**
@@ -20,7 +18,7 @@ interface Props {
  * - 黑键：深黑渐变 + 顶部棱线高光；按下微降
  * - 目标音：按音高柔光呼吸（target-pulse）；错音红闪；C 音名标注
  */
-export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, fingerMap }: Props) {
+export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong }: Props) {
   const midis: number[] = []
   for (let m = layout.lo; m <= layout.hi; m++) midis.push(m)
 
@@ -99,14 +97,6 @@ export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, fin
                 style={{ color: labelColor }}
               >
                 {noteName(m)}
-              </span>
-            )}
-            {isTarget && fingerMap?.get(m) !== undefined && (
-              <span
-                className="absolute inset-x-0 bottom-6 text-center text-sm font-bold"
-                style={{ color: 'rgba(15, 23, 42, 0.9)' }}
-              >
-                {fingerMap.get(m)}
               </span>
             )}
           </div>

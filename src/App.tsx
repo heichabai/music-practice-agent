@@ -7,13 +7,12 @@ import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
 import { GhostButton, PrimaryButton } from './components/ui/Button'
-import { IconChevronRight, IconMusicNote } from './components/icons'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
 import { SONGS } from './game/songs'
 import { saveSession } from './storage/sessionStore'
-import { listCustomSongs, saveCustomSong, type CustomSong } from './storage/songStore'
+import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } from './storage/songStore'
 import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
@@ -29,8 +28,9 @@ import {
   type Achievement,
 } from './game/gamification'
 import { loadGamification, saveGamification } from './storage/gamificationStore'
-import { GamificationBar } from './components/GamificationBar'
-import { SettingsPopover } from './components/SettingsPopover'
+import { DuoButton } from './components/DuoButton'
+import { LearningPath } from './components/LearningPath'
+import { SongSection } from './components/SongCard'
 import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
 import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { FreePlayCanvas } from './components/FreePlayCanvas'
@@ -67,26 +67,7 @@ const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
 }
 
 /** 每首曲子一个稳定的色相，用于曲库封面色块 */
-function songHue(song: Song): number {
-  if (song.id === 'warmup') return 206
-  if (song.id === 'twinkle') return 268
-  if (song.id === 'ode') return 152
-  return ((song.notes[0]?.midi ?? 60) * 47) % 360
-}
 
-function CoverTile({ song }: { song: Song }) {
-  const hue = songHue(song)
-  return (
-    <span
-      className="grid h-12 w-12 shrink-0 place-items-center rounded-lg"
-      style={{
-        background: `linear-gradient(135deg, hsl(${hue} 42% 30%), hsl(${(hue + 40) % 360} 46% 15%))`,
-      }}
-    >
-      <IconMusicNote className="h-5 w-5" style={{ color: `hsl(${hue} 70% 74%)` }} />
-    </span>
-  )
-}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('select')
@@ -106,6 +87,9 @@ export default function App() {
     imageUrl?: string
   } | null>(null)
   const [showScore, setShowScore] = useState(true)
+  const [lastPlayed, setLastPlayed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('mpa.lastPlayed') ?? '{}') } catch { return {} }
+  })
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [fromLessonId, setFromLessonId] = useState<string | null>(null)
   const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
@@ -113,15 +97,6 @@ export default function App() {
   const [achievementQueue, setAchievementQueue] = useState<AchievementToastData[]>([])
   const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
   const [micEnabled, setMicEnabled] = useState(false)
-  const [handFilter, setHandFilter] = useState<'R' | 'L' | 'both'>('both')
-  const [tempoScale, setTempoScale] = useState(1)
-  const [combo, setCombo] = useState(0)
-  const [loopA, setLoopA] = useState<number | null>(null)
-  const [loopB, setLoopB] = useState<number | null>(null)
-  const [lastPlayed, setLastPlayed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('mpa.lastPlayed') ?? '{}') } catch { return {} }
-  })
-  const [timingLabel, setTimingLabel] = useState<{ text: string; kind: 'perfect' | 'early' | 'late'; id: number } | null>(null)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
   const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
 
@@ -165,34 +140,10 @@ export default function App() {
       const result = engine.press(midi)
 
       if (result === 'hit') {
-        setCombo(prev => prev + 1)
-
-        // 实时节奏反馈（自由式）
-        if (engine.mode === 'free') {
-          const group = engine.currentGroup()
-          const noteIdx = group.find(i => engine.song.notes[i].midi === midi)
-          if (noteIdx !== undefined) {
-            const offset = engine.judgements[noteIdx]?.offsetBeats
-            if (offset !== null && offset !== undefined) {
-              const abs = Math.abs(offset)
-              const id = Date.now()
-              if (abs < 0.1) setTimingLabel({ text: '完美', kind: 'perfect', id })
-              else if (offset < 0) setTimingLabel({ text: `稍快 ${Math.round(Math.abs(offset) * 1000 / engine.song.bpm * 60)}ms`, kind: 'early', id })
-              else setTimingLabel({ text: `稍慢 ${Math.round(offset * 1000 / engine.song.bpm * 60)}ms`, kind: 'late', id })
-              window.setTimeout(() => {
-                setTimingLabel(prev => (prev !== null && prev.id === id ? null : prev))
-              }, 1200)
-            }
-          }
-        }
         applyGamification(gamifyNoteHit(gamification, midi))
         const decision = adaptiveRef.current?.onHit(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       } else if (result === 'wrong') {
-        setCombo(0)
-      setLoopA(null)
-      setLoopB(null)
-      setTimingLabel(null)
         const decision = adaptiveRef.current?.onError(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       }
@@ -253,13 +204,6 @@ export default function App() {
   const freePlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRecorder = useVideoRecorder(freePlayCanvasRef)
   const freePlayLayout = useMemo(() => new KeyboardLayout(36, 95), [])
-  const fingerMap = useMemo(() => {
-    const map = new Map<number, number>()
-    for (const n of song.notes) {
-      if (n.finger !== undefined) map.set(n.midi, n.finger)
-    }
-    return map
-  }, [song])
 
   const toggleMic = useCallback(async () => {
     if (micEnabled) {
@@ -284,10 +228,6 @@ export default function App() {
       setPressedSet(new Set())
       setWrong(null)
       setReport(null)
-      setCombo(0)
-      setLoopA(null)
-      setLoopB(null)
-      setTimingLabel(null)
       try {
         await Tone.start()
         Tone.getContext().lookAhead = 0.005
@@ -307,7 +247,7 @@ export default function App() {
   )
 
   const startSong = useCallback(
-    async (id: string, practiceMode: PracticeMode, filter?: 'R' | 'L' | 'both', scale?: number) => {
+    async (id: string, practiceMode: PracticeMode) => {
       setSongId(id)
       setLessonSongOverride(null)
       setFromLessonId(null)
@@ -316,20 +256,7 @@ export default function App() {
       setLastPlayed(lp)
       try { localStorage.setItem('mpa.lastPlayed', JSON.stringify(lp)) } catch {}
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
-      let filtered: typeof s = {
-        ...s,
-        notes: filter && filter !== 'both'
-          ? s.notes.filter(n => n.hand === filter || n.hand === undefined)
-          : s.notes,
-      }
-      // 声部过滤后为空（如右手曲选了左手）→ 回退全曲
-      if (filtered.notes.length === 0) {
-        filtered = { ...s }
-      }
-      if (scale !== undefined && scale !== 1) {
-        filtered.bpm = Math.round(s.bpm * scale)
-      }
-      engineRef.current = new GameEngine(filtered, practiceMode)
+      engineRef.current = new GameEngine(s, practiceMode)
       adaptiveRef.current = new AdaptiveEngine(s.bpm, practiceMode)
       sessionStartRef.current = Date.now()
       finishedRef.current = false
@@ -368,23 +295,6 @@ export default function App() {
       const engine = engineRef.current
       if (engine) {
         engine.update((dt * engine.song.bpm) / 60)
-
-        // 段落循环：到达 B 点回到 A 点
-        if (loopA !== null && loopB !== null && engine.songTime >= loopB) {
-          engine.songTime = loopA
-          engine.cursor = 0
-          engine.waiting = false
-          for (let li = 0; li < engine.song.notes.length; li++) {
-            if (engine.song.notes[li].time >= loopA) {
-              engine.cursor = li
-              break
-            }
-          }
-          for (let li = 0; li < engine.song.notes.length; li++) {
-            engine.states[li] = engine.song.notes[li].time < loopA ? 'hit' : 'pending'
-          }
-        }
-
         const h = engine.hud()
         setHud(prev => (prev && sameHud(prev, h) ? prev : h))
         if (now - lastTargetCheck > 120) {
@@ -450,112 +360,104 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8 text-primary">
       {screen === 'select' && (
-        <div className="screen-enter w-full max-w-2xl pb-16">
-          {/* 顶部状态栏 + 设置 */}
-          <div className="flex items-center gap-3 pt-6">
-            <GamificationBar state={gamification} />
-            <SettingsPopover
-              mode={mode}
-              handFilter={handFilter}
-              tempoScale={tempoScale}
-              onChange={patch => {
-                if (patch.mode !== undefined) setMode(patch.mode)
-                if (patch.handFilter !== undefined) setHandFilter(patch.handFilter)
-                if (patch.tempoScale !== undefined) setTempoScale(patch.tempoScale)
+        <div className="screen-enter w-full max-w-lg pb-28">
+          {/* ===== 顶部状态栏（多邻国式） ===== */}
+          <div className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-2 bg-base/80 px-4 py-3 backdrop-blur-md">
+            <span className="flex items-center gap-1.5">
+              <span className="text-xl">🔥</span>
+              <span className="text-lg font-black text-[#FF9600]">{gamification.streak}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-lg">⚡</span>
+              <span className="text-base font-bold text-[#FFC800]">{gamification.xp.toLocaleString()}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-lg">👑</span>
+              <span className="text-base font-bold text-[#CE82FF]">Lv.{gamification.level}</span>
+            </span>
+            <div className="flex-1" />
+            <button
+              onClick={() => {
+                const t = getTutorialProgress().completed.length
+                if (t < LESSONS.length) {
+                  setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
+                  setScreen('lesson')
+                } else {
+                  void startSong(lastPlayed.id ?? SONGS[0].id, mode)
+                }
               }}
-            />
+              className="flex items-center gap-1 text-xs font-bold text-[#58CC02] hover:underline"
+            >
+              {mode === 'wait' ? '⏸️ 等待式' : '🎵 自由式'}
+              {' · '}
+              <button onClick={() => setMode(m => m === 'wait' ? 'free' : 'wait')} className="text-[#1CB0F6] hover:underline">
+                切换
+              </button>
+              {' · '}
+              ⚙️ 设置
+            </button>
           </div>
 
-          {/* 继续练习大卡 */}
+          {/* ===== 继续练习大卡（多邻国式） ===== */}
           <button
             onClick={() => {
-              const targetId = lastPlayed.id ?? SONGS[0].id
-              void startSong(targetId, mode, handFilter, tempoScale)
+              const t = getTutorialProgress().completed.length
+              if (t < LESSONS.length) {
+                setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
+                setScreen('lesson')
+              } else {
+                void startSong(lastPlayed.id ?? SONGS[0].id, mode)
+              }
             }}
-            className="sheen group mt-6 flex w-full items-center gap-5 rounded-2xl border border-accent/40 bg-gradient-to-r from-accent/10 to-transparent p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-panel"
+            className="mt-4 w-full"
           >
-            <span className="bg-gradient-accent grid h-14 w-14 shrink-0 place-items-center rounded-2xl shadow-[0_4px_20px_rgb(245_158_11/0.4)]">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-slate-950" fill="currentColor">
-                <path d="M8 5.14v14l11-7-11-7z" />
-              </svg>
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-h3 font-semibold text-primary">继续练习</span>
-              <span className="mt-0.5 block text-body text-secondary">
-                {lastPlayed.name ?? SONGS[0].name} · {MODE_INFO[mode].label}
-              </span>
-            </span>
-            <IconChevronRight className="h-5 w-5 shrink-0 text-accent" />
+            <DuoButton variant="green" className="w-full py-4 text-lg">
+              {getTutorialProgress().completed.length < LESSONS.length
+                ? `继续第 ${getTutorialProgress().completed.length + 1} 课`
+                : `继续练习 · ${lastPlayed.name ?? SONGS[0].name}`}
+            </DuoButton>
           </button>
 
-          {/* 课程（未完课时显示横向圆点） */}
-          {(() => {
-            const tutorialDone = getTutorialProgress().completed.length
-            if (tutorialDone >= LESSONS.length) return null
-            return (
-              <section className="mt-8">
-                <h2 className="text-micro font-medium uppercase text-muted">入门课程</h2>
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {LESSONS.map(lesson => {
-                    const isDone = getTutorialProgress().completed.includes(lesson.id)
-                    const isCurrent = !isDone && lesson.order === tutorialDone + 1
-                    return (
-                      <button
-                        key={lesson.id}
-                        onClick={() => {
-                          setActiveLesson(lesson)
-                          setScreen('lesson')
-                        }}
-                        className={`flex h-20 w-28 shrink-0 flex-col items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 ${
-                          isDone
-                            ? 'border-hit/40 bg-hit/5'
-                            : isCurrent
-                              ? 'border-accent/60 bg-accent/10 shadow-[0_2px_12px_rgb(245_158_11/0.15)]'
-                              : 'border-border-subtle bg-surface'
-                        }`}
-                      >
-                        <span className={`text-xl font-bold ${isDone ? 'text-hit' : isCurrent ? 'text-accent-strong' : 'text-muted'}`}>
-                          {isDone ? '✓' : isCurrent ? '▶' : lesson.order}
-                        </span>
-                        <span className="mt-1 px-1 text-center text-[11px] leading-tight text-secondary">
-                          {lesson.title}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            )
-          })()}
+          {/* ===== 学习路径（多邻国之字形） ===== */}
+          {getTutorialProgress().completed.length < LESSONS.length && (
+            <section className="mt-8">
+              <div className="mb-4 rounded-2xl bg-[#1CB0F6] px-4 py-3 text-center shadow-[0_3px_0_#1899D6]">
+                <p className="text-sm font-black uppercase tracking-wide text-white">
+                  UNIT 1 · 零基础入门
+                </p>
+              </div>
+              <LearningPath
+                lessons={LESSONS}
+                onOpenLesson={lesson => {
+                  setActiveLesson(lesson)
+                  setScreen('lesson')
+                }}
+              />
+            </section>
+          )}
 
-          {/* 曲目网格 */}
+          {/* ===== 曲目 ===== */}
           <section className="mt-8">
-            <h2 className="text-micro font-medium uppercase text-muted">曲目</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {allSongs.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
-                  className="sheen group flex flex-col items-center rounded-xl border border-white/[0.05] bg-white/[0.025] p-4 text-center backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:bg-white/[0.05]"
-                >
-                  <CoverTile song={s} />
-                  <span className="mt-2 block w-full truncate text-body font-medium text-primary">{s.name}</span>
-                  <span className="text-caption tabular-nums text-muted">{s.bpm} BPM</span>
-                </button>
-              ))}
-            </div>
-
-            {/* 自定义曲删除 */}
-            {customSongs.length > 0 && (
-              <p className="mt-2 text-center text-micro text-muted">
-                长按曲名可删除自导入曲目
+            <div className="mb-4 rounded-2xl bg-[#CE82FF] px-4 py-3 text-center shadow-[0_3px_0_#A568CC]">
+              <p className="text-sm font-black uppercase tracking-wide text-white">
+                🎵 曲目
               </p>
-            )}
+            </div>
+            <SongSection
+              songs={allSongs.map(s => ({ ...s, source: (s as CustomSong).source }))}
+              onPlay={s => void startSong(s.id, mode)}
+              onDelete={id => {
+                deleteCustomSong(id)
+                setCustomSongs(listCustomSongs())
+              }}
+            />
           </section>
 
-          {/* 底部功能入口 */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <button
+          {/* ===== 底部功能按钮 ===== */}
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            <DuoButton
+              variant="purple"
+              className="py-3 text-sm"
               onClick={() => {
                 setFreePlayNoteCount(0)
                 setFreePlayCurrentNote('')
@@ -563,30 +465,25 @@ export default function App() {
                 preloadPiano()
                 setScreen('freeplay')
               }}
-              className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent-dim/20 px-4 py-3 text-left transition-all hover:border-accent/60"
             >
-              <span className="text-xl">🎹</span>
-              <span>
-                <span className="block text-caption font-medium text-primary">自由弹奏</span>
-                <span className="block text-micro text-muted">无谱弹 · 可录视频</span>
-              </span>
-            </button>
-            <button
+              🎹 自由弹奏
+            </DuoButton>
+            <DuoButton
+              variant="blue"
+              className="py-3 text-sm"
               onClick={() => setScreen('import')}
-              className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface px-4 py-3 text-left transition-all hover:border-border-strong"
             >
-              <span className="text-xl">📥</span>
-              <span>
-                <span className="block text-caption font-medium text-primary">导入乐谱</span>
-                <span className="block text-micro text-muted">图片/PDF/MIDI</span>
-              </span>
-            </button>
+              📥 导入乐谱
+            </DuoButton>
           </div>
 
-          {/* MIDI/麦克风状态（底部细字） */}
-          <p className="mt-4 flex items-center justify-center gap-2 text-micro text-muted">
-            {midiStatus === 'ok' ? `MIDI · ${deviceName}` : midiStatus === 'no-device' ? '电脑键盘可用' : midiStatus}
-            <button onClick={() => void toggleMic()} className="text-info hover:underline">{micEnabled ? '· 麦克风开启' : '· 开启麦克风'}</button>
+          {/* MIDI 状态 */}
+          <p className="mt-4 text-center text-xs text-gray-500">
+            {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
+            {' · '}
+            <button onClick={() => void toggleMic()} className="text-[#1CB0F6] hover:underline">
+              {micEnabled ? '麦克风已开' : '开麦克风'}
+            </button>
           </p>
         </div>
       )}
@@ -610,7 +507,6 @@ export default function App() {
             </div>
             <div className="flex items-center gap-x-5 tabular-nums">
               <span className="text-hit">命中 {hud?.hits ?? 0}</span>
-            {combo >= 3 && <span className="font-bold text-accent-strong">{combo} 连击</span>}
               {mode === 'free' && <span className="text-miss">漏弹 {hud?.misses ?? 0}</span>}
               <span className="text-wrong">错音 {hud?.errors ?? 0}</span>
               <span className="text-secondary">
@@ -629,35 +525,6 @@ export default function App() {
             >
               乐谱 {showScore ? '开' : '关'}
             </button>
-            {/* 段落循环 */}
-            {loopA === null ? (
-              <button
-                onClick={() => {
-                  const t = engineRef.current?.songTime ?? 0
-                  setLoopA(Math.max(0, t))
-                }}
-                className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
-              >
-                设 A 点
-              </button>
-            ) : loopB === null ? (
-              <button
-                onClick={() => {
-                  const t = engineRef.current?.songTime ?? 0
-                  setLoopB(Math.max(loopA + 1, t))
-                }}
-                className="rounded-full border-accent/50 bg-accent/10 px-3 py-1 text-xs text-accent-strong"
-              >
-                设 B 点（循环）
-              </button>
-            ) : (
-              <button
-                onClick={() => { setLoopA(null); setLoopB(null) }}
-                className="rounded-full border-accent/60 bg-accent/15 px-3 py-1 text-xs font-medium text-accent-strong"
-              >
-                循环中 · 取消
-              </button>
-            )}
           </div>
 
           {/* 乐谱条：单行横向滚动，跟随进度 */}
@@ -679,21 +546,11 @@ export default function App() {
               pressedSet={pressedSet}
               targetSet={targetSet}
               wrong={wrong}
-              fingerMap={fingerMap}
             />
           </div>
 
           <p className="mt-5 text-center text-xs text-muted">
-            {timingLabel !== null ? (
-              <span
-                className={`font-bold ${
-                  timingLabel.kind === 'perfect' ? 'text-hit' :
-                  timingLabel.kind === 'early' ? 'text-info' : 'text-miss'
-                }`}
-              >
-                {timingLabel.text}
-              </span>
-            ) : mode === 'wait'
+            {mode === 'wait'
               ? hud?.waiting
                 ? '弹奏亮起的目标键 · 弹对才前进'
                 : '音符下落中…'
