@@ -6,15 +6,14 @@ import { ReportScreen } from './components/ReportScreen'
 import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
-import { MidiStatusBadge } from './components/ui/MidiStatusBadge'
 import { GhostButton, PrimaryButton } from './components/ui/Button'
-import { IconChevronRight, IconMusicNote, IconTrash } from './components/icons'
+import { IconChevronRight, IconMusicNote } from './components/icons'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
 import { SONGS } from './game/songs'
 import { saveSession } from './storage/sessionStore'
-import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } from './storage/songStore'
+import { listCustomSongs, saveCustomSong, type CustomSong } from './storage/songStore'
 import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
@@ -31,13 +30,13 @@ import {
 } from './game/gamification'
 import { loadGamification, saveGamification } from './storage/gamificationStore'
 import { GamificationBar } from './components/GamificationBar'
+import { SettingsPopover } from './components/SettingsPopover'
 import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
 import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { FreePlayCanvas } from './components/FreePlayCanvas'
 import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
-import { markLessonComplete } from './storage/tutorialStore'
-import { TutorialScreen } from './components/tutorial/TutorialScreen'
+import { markLessonComplete, getTutorialProgress } from './storage/tutorialStore'
 import { LessonScreen } from './components/tutorial/LessonScreen'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
@@ -107,7 +106,6 @@ export default function App() {
     imageUrl?: string
   } | null>(null)
   const [showScore, setShowScore] = useState(true)
-  const [selectTab, setSelectTab] = useState<'learn' | 'practice'>('learn')
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [fromLessonId, setFromLessonId] = useState<string | null>(null)
   const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
@@ -120,6 +118,9 @@ export default function App() {
   const [combo, setCombo] = useState(0)
   const [loopA, setLoopA] = useState<number | null>(null)
   const [loopB, setLoopB] = useState<number | null>(null)
+  const [lastPlayed, setLastPlayed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('mpa.lastPlayed') ?? '{}') } catch { return {} }
+  })
   const [timingLabel, setTimingLabel] = useState<{ text: string; kind: 'perfect' | 'early' | 'late'; id: number } | null>(null)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
   const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
@@ -310,6 +311,10 @@ export default function App() {
       setSongId(id)
       setLessonSongOverride(null)
       setFromLessonId(null)
+      const songObj = allSongs.find(x => x.id === id) ?? allSongs[0]
+      const lp = { id, name: songObj.name }
+      setLastPlayed(lp)
+      try { localStorage.setItem('mpa.lastPlayed', JSON.stringify(lp)) } catch {}
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
       let filtered: typeof s = {
         ...s,
@@ -445,257 +450,146 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col items-center px-4 py-8 text-primary">
       {screen === 'select' && (
-        <div className="screen-enter w-full max-w-3xl">
-          {/* Hero：apple 式大字 + pill CTA，留白充足 */}
-          <header className="pt-12 sm:pt-20">
-            <p className="text-micro font-medium uppercase text-muted">
-              Piano Practice · W2
-            </p>
-            <h1 className="text-display mt-6 font-semibold text-primary sm:text-6xl">
-              琴键陪练
-              <span className="text-gradient-accent"> Agent.</span>
-            </h1>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-secondary">
-              一处安静的练习场。逐音反馈，跟随霓虹音符学习弹琴。
-            </p>
-            <div className="mt-10 flex items-center gap-4">
-              <PrimaryButton
-                onClick={() => void startSong(SONGS[0].id, mode, handFilter, tempoScale)}
-                className="bg-gradient-accent px-7 py-3 shadow-[0_6px_24px_rgb(245_158_11/0.3)] transition-shadow hover:shadow-[0_8px_32px_rgb(245_158_11/0.45)]"
-              >
-                开始练习
-                <span aria-hidden>→</span>
-              </PrimaryButton>
-              <span className="text-xs text-muted">
-                支持 MIDI 键盘或电脑键盘
-              </span>
-            </div>
-          </header>
-
-          {/* 学习 / 练习 双 tab */}
-          <div className="glass mt-12 inline-flex rounded-full p-1">
-            <button
-              onClick={() => setSelectTab('learn')}
-              className={`rounded-full px-6 py-2 text-body transition-all duration-200 ${
-                selectTab === 'learn' ? 'bg-gradient-accent font-semibold text-slate-950 shadow-[0_2px_12px_rgb(245_158_11/0.35)]' : 'text-secondary hover:text-primary'
-              }`}
-            >
-              学习
-            </button>
-            <button
-              onClick={() => setSelectTab('practice')}
-              className={`rounded-full px-6 py-2 text-body transition-all duration-200 ${
-                selectTab === 'practice' ? 'bg-gradient-accent font-semibold text-slate-950 shadow-[0_2px_12px_rgb(245_158_11/0.35)]' : 'text-secondary hover:text-primary'
-              }`}
-            >
-              练习
-            </button>
+        <div className="screen-enter w-full max-w-2xl pb-16">
+          {/* 顶部状态栏 + 设置 */}
+          <div className="flex items-center gap-3 pt-6">
+            <GamificationBar state={gamification} />
+            <SettingsPopover
+              mode={mode}
+              handFilter={handFilter}
+              tempoScale={tempoScale}
+              onChange={patch => {
+                if (patch.mode !== undefined) setMode(patch.mode)
+                if (patch.handFilter !== undefined) setHandFilter(patch.handFilter)
+                if (patch.tempoScale !== undefined) setTempoScale(patch.tempoScale)
+              }}
+            />
           </div>
 
-          {selectTab === 'learn' ? (
-            <section className="mt-8 pb-16">
-              <div className="mb-4">
-                <GamificationBar state={gamification} />
-              </div>
-              <TutorialScreen
-                lessons={LESSONS}
-                onOpenLesson={lesson => {
-                  setActiveLesson(lesson)
-                  setScreen('lesson')
-                }}
-              />
-            </section>
-          ) : (
-          <>
-          <hr className="mt-20 border-border-subtle" />
-
-          {/* MIDI 状态行 + 麦克风开关 */}
-          <section className="mt-10 flex flex-wrap items-center gap-3">
-            <MidiStatusBadge status={midiStatus} deviceName={deviceName} />
-            <button
-              onClick={() => void toggleMic()}
-              className={`glass flex items-center gap-2 rounded-full px-4 py-2 text-caption transition-all duration-200 ${
-                micEnabled
-                  ? 'border-accent/60 text-accent-strong'
-                  : 'text-secondary hover:border-border-strong hover:text-primary'
-              }`}
-            >
-              <span className="text-base leading-none">{micEnabled ? '🎙️' : '🎤'}</span>
-              {micEnabled ? '麦克风已开启' : '开启麦克风'}
-            </button>
-            {micEnabled && audioInput.state.detectedMidi !== null && (
-              <span className="text-caption tabular-nums text-info">
-                检测到：{audioInput.state.detectedMidi}
+          {/* 继续练习大卡 */}
+          <button
+            onClick={() => {
+              const targetId = lastPlayed.id ?? SONGS[0].id
+              void startSong(targetId, mode, handFilter, tempoScale)
+            }}
+            className="sheen group mt-6 flex w-full items-center gap-5 rounded-2xl border border-accent/40 bg-gradient-to-r from-accent/10 to-transparent p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-panel"
+          >
+            <span className="bg-gradient-accent grid h-14 w-14 shrink-0 place-items-center rounded-2xl shadow-[0_4px_20px_rgb(245_158_11/0.4)]">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-slate-950" fill="currentColor">
+                <path d="M8 5.14v14l11-7-11-7z" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-h3 font-semibold text-primary">继续练习</span>
+              <span className="mt-0.5 block text-body text-secondary">
+                {lastPlayed.name ?? SONGS[0].name} · {MODE_INFO[mode].label}
               </span>
-            )}
-            {audioInput.state.status === 'error' && (
-              <span className="text-caption text-wrong">麦克风：{audioInput.state.error}</span>
-            )}
-          </section>
+            </span>
+            <IconChevronRight className="h-5 w-5 shrink-0 text-accent" />
+          </button>
 
-          <hr className="mt-12 border-border-subtle" />
-
-          {/* 模式：pill segmented */}
-          <section className="mt-10">
-            <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-              Practice Mode
-            </h2>
-            <div className="mt-5 inline-flex rounded-full border border-border-subtle p-1">
-              {(Object.keys(MODE_INFO) as PracticeMode[]).map(m => {
-                const info = MODE_INFO[m]
-                const selected = mode === m
-                return (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    className={`rounded-full px-5 py-2 text-sm transition-colors duration-150 ${
-                      selected
-                        ? 'bg-primary text-base shadow-[0_1px_2px_rgba(0,0,0,0.6)]'
-                        : 'text-secondary hover:text-primary'
-                    }`}
-                  >
-                    {info.label}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="mt-3 max-w-md text-sm text-muted">
-              {MODE_INFO[mode].desc}
-            </p>
-
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-caption text-muted">声部</span>
-              <div className="flex overflow-hidden rounded-full border border-border-subtle">
-                {([['R', '右手'], ['L', '左手'], ['both', '双手']] as const).map(([val, label]) => (
-                  <button
-                    key={val}
-                    onClick={() => setHandFilter(val)}
-                    className={`px-3.5 py-1.5 text-caption transition-colors ${
-                      handFilter === val ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-caption text-muted">速度</span>
-              <div className="flex overflow-hidden rounded-full border border-border-subtle">
-                {([0.5, 0.75, 1] as const).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setTempoScale(v)}
-                    className={`px-3.5 py-1.5 text-caption tabular-nums transition-colors ${
-                      tempoScale === v ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
-                    }`}
-                  >
-                    {v === 1 ? '原速' : `${v * 100}%`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <hr className="mt-12 border-border-subtle" />
-
-          {/* 曲目：封面卡片 */}
-          <section className="mt-10 pb-16">
-            {customSongs.length > 0 && (
-              <>
-                <h2 className="text-micro font-medium uppercase text-muted">
-                  My Pieces
-                </h2>
-                <div className="mt-4 space-y-2.5">
-                  {customSongs.map(s => (
-                    <div key={s.id} className="group relative">
+          {/* 课程（未完课时显示横向圆点） */}
+          {(() => {
+            const tutorialDone = getTutorialProgress().completed.length
+            if (tutorialDone >= LESSONS.length) return null
+            return (
+              <section className="mt-8">
+                <h2 className="text-micro font-medium uppercase text-muted">入门课程</h2>
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {LESSONS.map(lesson => {
+                    const isDone = getTutorialProgress().completed.includes(lesson.id)
+                    const isCurrent = !isDone && lesson.order === tutorialDone + 1
+                    return (
                       <button
-                        onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
-                        className="sheen group flex w-full items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-raised"
-                      >
-                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border-subtle text-xs font-semibold text-secondary">
-                          {s.source === 'image' ? 'AI' : s.source === 'omr' ? 'OMR' : 'MIDI'}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-body font-medium text-primary">
-                            {s.name}
-                          </span>
-                          <span className="mt-0.5 block text-caption text-muted">
-                            {s.bpm} BPM · {s.notes.length} 音
-                          </span>
-                        </span>
-                        <IconChevronRight className="h-4 w-4 shrink-0 text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                      </button>
-                      <button
+                        key={lesson.id}
                         onClick={() => {
-                          deleteCustomSong(s.id)
-                          setCustomSongs(listCustomSongs())
+                          setActiveLesson(lesson)
+                          setScreen('lesson')
                         }}
-                        aria-label={`删除 ${s.name}`}
-                        className="absolute -top-1.5 right-2 grid h-7 w-7 place-items-center rounded-full border border-border-subtle bg-raised text-muted opacity-0 transition-all duration-150 hover:border-wrong/60 hover:text-wrong group-hover:opacity-100"
+                        className={`flex h-20 w-28 shrink-0 flex-col items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 ${
+                          isDone
+                            ? 'border-hit/40 bg-hit/5'
+                            : isCurrent
+                              ? 'border-accent/60 bg-accent/10 shadow-[0_2px_12px_rgb(245_158_11/0.15)]'
+                              : 'border-border-subtle bg-surface'
+                        }`}
                       >
-                        <IconTrash className="h-3.5 w-3.5" />
+                        <span className={`text-xl font-bold ${isDone ? 'text-hit' : isCurrent ? 'text-accent-strong' : 'text-muted'}`}>
+                          {isDone ? '✓' : isCurrent ? '▶' : lesson.order}
+                        </span>
+                        <span className="mt-1 px-1 text-center text-[11px] leading-tight text-secondary">
+                          {lesson.title}
+                        </span>
                       </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
-                <hr className="mt-8 border-border-subtle" />
-                <h2 className="mt-8 text-micro font-medium uppercase text-muted">
-                  Pieces
-                </h2>
-              </>
-            )}
-            <div className={customSongs.length > 0 ? 'mt-4 space-y-2.5' : 'mt-4 space-y-2.5'}>
-              {SONGS.map(s => (
-                <div key={s.id} className="group">
-                  <button
-                    onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
-                    className="sheen group flex w-full items-center gap-4 rounded-xl border border-white/[0.05] bg-white/[0.025] px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:bg-white/[0.05] hover:shadow-panel"
-                  >
-                    <CoverTile song={s} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body font-medium text-primary">{s.name}</span>
-                      <span className="mt-0.5 block text-caption text-muted">
-                        {s.bpm} BPM · {s.notes.length} 音
-                      </span>
-                    </span>
-                    <IconChevronRight className="h-4 w-4 shrink-0 text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                  </button>
-                </div>
+              </section>
+            )
+          })()}
+
+          {/* 曲目网格 */}
+          <section className="mt-8">
+            <h2 className="text-micro font-medium uppercase text-muted">曲目</h2>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {allSongs.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
+                  className="sheen group flex flex-col items-center rounded-xl border border-white/[0.05] bg-white/[0.025] p-4 text-center backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:bg-white/[0.05]"
+                >
+                  <CoverTile song={s} />
+                  <span className="mt-2 block w-full truncate text-body font-medium text-primary">{s.name}</span>
+                  <span className="text-caption tabular-nums text-muted">{s.bpm} BPM</span>
+                </button>
               ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => {
-                  setFreePlayNoteCount(0)
-                  setFreePlayCurrentNote('')
-                  void Tone.start()
-                  preloadPiano()
-                  setScreen('freeplay')
-                }}
-                className="sheen group flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-dim/30 px-5 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
-              >
-                <span className="text-2xl leading-none">🎹</span>
-                <span>
-                  <span className="block text-body font-medium text-primary">自由弹奏</span>
-                  <span className="block text-caption text-muted">无谱自由弹，音符实时可视化，可录制视频</span>
-                </span>
-              </button>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <GhostButton onClick={() => setScreen('import')}>导入乐谱 / MIDI</GhostButton>
-              <span className="text-xs text-muted">
-                乐谱图片 AI 识别，或 MIDI 直传，校对后入库
-              </span>
-            </div>
+            {/* 自定义曲删除 */}
+            {customSongs.length > 0 && (
+              <p className="mt-2 text-center text-micro text-muted">
+                长按曲名可删除自导入曲目
+              </p>
+            )}
           </section>
-          </>
-          )}
+
+          {/* 底部功能入口 */}
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                setFreePlayNoteCount(0)
+                setFreePlayCurrentNote('')
+                void Tone.start()
+                preloadPiano()
+                setScreen('freeplay')
+              }}
+              className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent-dim/20 px-4 py-3 text-left transition-all hover:border-accent/60"
+            >
+              <span className="text-xl">🎹</span>
+              <span>
+                <span className="block text-caption font-medium text-primary">自由弹奏</span>
+                <span className="block text-micro text-muted">无谱弹 · 可录视频</span>
+              </span>
+            </button>
+            <button
+              onClick={() => setScreen('import')}
+              className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface px-4 py-3 text-left transition-all hover:border-border-strong"
+            >
+              <span className="text-xl">📥</span>
+              <span>
+                <span className="block text-caption font-medium text-primary">导入乐谱</span>
+                <span className="block text-micro text-muted">图片/PDF/MIDI</span>
+              </span>
+            </button>
           </div>
-        )}
+
+          {/* MIDI/麦克风状态（底部细字） */}
+          <p className="mt-4 flex items-center justify-center gap-2 text-micro text-muted">
+            {midiStatus === 'ok' ? `MIDI · ${deviceName}` : midiStatus === 'no-device' ? '电脑键盘可用' : midiStatus}
+            <button onClick={() => void toggleMic()} className="text-info hover:underline">{micEnabled ? '· 麦克风开启' : '· 开启麦克风'}</button>
+          </p>
+        </div>
+      )}
 
       {screen === 'play' && (
         <div className="screen-enter w-full max-w-4xl">
