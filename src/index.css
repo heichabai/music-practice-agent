@@ -214,22 +214,22 @@ body::after {
   border-radius: 4px;
 }
 
-/* ---------- 乐谱条（浅色主题，蓝色调） ---------- */
+/* ---------- 乐谱条（纯黑白，标准乐谱） ---------- */
 .score-strip svg path {
-  stroke: #7c8cf8;
+  stroke: #1a1a1a;
 }
 .score-strip svg text {
-  fill: #6b7280;
+  fill: #1a1a1a;
 }
 .score-strip svg .abcjs-note path[stroke] {
-  stroke: #4b5fc7;
+  stroke: #1a1a1a;
   fill: none;
 }
 .score-strip svg .abcjs-note path:not([stroke]) {
-  fill: #1e293b;
+  fill: #1a1a1a;
 }
 .score-strip svg .abcjs-rest path {
-  fill: #9ca3af;
+  fill: #1a1a1a;
 }
 .score-strip .abcjs-note.score-current path:not([stroke]) {
   fill: #f59e0b !important;
@@ -238,10 +238,10 @@ body::after {
   stroke: #f59e0b !important;
 }
 .score-strip svg .abcjs-bar path {
-  stroke: #d1d5db !important;
+  stroke: #c4c4c4 !important;
 }
 .score-strip svg .abcjs-staff path {
-  stroke: #d1d5db !important;
+  stroke: #1a1a1a !important;
 }
 
 /* ---------- prefers-reduced-motion ---------- */

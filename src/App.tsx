@@ -494,7 +494,7 @@ export default function App() {
           <div className="glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-5 py-3.5 text-sm max-sm:text-xs">
             <button
               onClick={() => setScreen('select')}
-              className="grid h-9 w-9 place-items-center rounded-full bg-[#2B2B33] text-base text-white shadow-[0_3px_0_#1E1E25] transition-all active:translate-y-[3px] active:shadow-none"
+              className="grid h-9 w-9 place-items-center rounded-full bg-gray-200 text-base text-gray-700 shadow-[0_2px_0_#c4c4c4] transition-all active:translate-y-[2px] active:shadow-none"
               aria-label="退出练习"
             >
               ‹

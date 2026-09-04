@@ -18,17 +18,17 @@ export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: s
     <div className="group relative">
       <button
         onClick={() => onPlay(song)}
-        className="flex w-full items-center gap-3 rounded-2xl border-2 border-transparent bg-[#2B2B33] p-4 text-left transition-all duration-150 hover:border-current active:translate-y-[2px]"
+        className="flex w-full items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white p-4 text-left transition-all duration-150 hover:border-current active:translate-y-[2px]"
         style={{ borderLeftColor: color }}
       >
         <span
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-xl font-black text-white"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-xl font-black text-gray-900"
           style={{ background: color, boxShadow: `0 3px 0 ${color}80` }}
         >
           {song.source === 'omr' ? '🎼' : song.source === 'image' ? '🤖' : song.source === 'midi' ? '🎹' : '🎵'}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-bold text-white">{song.name}</span>
+          <span className="block truncate text-base font-bold text-gray-900">{song.name}</span>
           <span className="text-xs font-medium text-gray-400">
             {song.bpm} BPM · {song.notes.length} 音
           </span>
@@ -40,7 +40,7 @@ export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: s
       {onDelete !== undefined && (
         <button
           onClick={() => onDelete(song.id)}
-          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-[#FF4B4B] text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-[#FF4B4B] text-xs text-gray-900 opacity-0 transition-opacity group-hover:opacity-100"
         >
           ×
         </button>
