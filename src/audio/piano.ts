@@ -59,6 +59,11 @@ export function getPiano(): Promise<Tone.Sampler | null> {
 
 /** 弹一个音；返回是否真的用了钢琴（否则调用方自行回退） */
 export async function playPianoNote(midi: number, duration = 0.5): Promise<boolean> {
+  try {
+    await Tone.start()
+  } catch {
+    // AudioContext 恢复失败则回退合成音色
+  }
   const piano = await getPiano()
   enforceLowLatency()
   if (piano === null) return false
