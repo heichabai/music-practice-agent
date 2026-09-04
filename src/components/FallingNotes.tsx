@@ -60,9 +60,9 @@ function makeNoteGradient(
 ): CanvasGradient {
   // 顶亮核 → 中饱和 → 底深
   const g = ctx.createLinearGradient(x, y, x, y + h)
-  g.addColorStop(0, `hsla(${hue}, ${sat}%, ${Math.min(96, lit + 11)}%, ${alpha})`)
+  g.addColorStop(0, `hsla(${hue}, ${sat}%, ${Math.min(85, lit + 8)}%, ${alpha})`)
   g.addColorStop(0.5, `hsla(${hue}, ${sat}%, ${lit}%, ${alpha})`)
-  g.addColorStop(1, `hsla(${hue}, ${sat}%, ${Math.max(45, lit - 16)}%, ${alpha})`)
+  g.addColorStop(1, `hsla(${hue}, ${sat}%, ${Math.max(30, lit - 18)}%, ${alpha})`)
   return g
 }
 
@@ -243,7 +243,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         const radius = 10 + progress * 30
         ctx.beginPath()
         ctx.arc(g.x + g.w / 2, hitY, radius, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(245, 158, 11, ${(1 - progress) * 0.5})`
+        ctx.strokeStyle = `rgba(217, 119, 6, ${(1 - progress) * 0.6})`
         ctx.lineWidth = 2
         ctx.stroke()
       }

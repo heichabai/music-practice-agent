@@ -186,8 +186,8 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
         const distFromLine = hitY - topY
         const fadeStart = CANVAS_H * 0.5
         const alpha = isHeld
-          ? 0.9
-          : Math.max(0, 1 - Math.max(0, distFromLine - fadeStart) / (CANVAS_H * 0.4)) * 0.8
+          ? 0.88
+          : Math.max(0, 1 - Math.max(0, distFromLine - fadeStart) / (CANVAS_H * 0.4)) * 0.85
 
         if (alpha <= 0.01) continue
 
@@ -232,9 +232,9 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
           e.y += e.vy * dt
 
           const t = e.life / e.maxLife
-          ctx.shadowColor = `hsla(${e.hue}, 80%, 78%, ${t * 0.7})`
+          ctx.shadowColor = `hsla(${e.hue}, 80%, 60%, ${t * 0.5})`
           ctx.shadowBlur = 8
-          ctx.fillStyle = `hsla(${e.hue}, 80%, 90%, ${t})`
+          ctx.fillStyle = `hsla(${e.hue}, 75%, 55%, ${t})`
           ctx.beginPath()
           ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2)
           ctx.fill()
