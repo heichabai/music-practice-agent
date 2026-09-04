@@ -347,7 +347,7 @@ export default function App() {
 
   // 电脑键盘兜底输入（练习页 + 课程页互动任务）
   useEffect(() => {
-    if (screen !== 'play' && screen !== 'lesson') return
+    if (screen !== 'play' && screen !== 'lesson' && screen !== 'freeplay') return
     const down = (e: KeyboardEvent) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
       const midi = KEYBOARD_MAP[e.code]
