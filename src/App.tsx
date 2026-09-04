@@ -19,6 +19,20 @@ import type { PracticeMode, Song } from './types'
 import { useElementWidth } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
 import { playPianoNote, preloadPiano } from './audio/piano'
+import { useAudioInput } from './audio/useAudioInput'
+import { AdaptiveEngine, type AdaptiveDecision } from './game/adaptive'
+import {
+  onNoteHit as gamifyNoteHit,
+  onSessionEnd as gamifySessionEnd,
+  onLessonComplete as gamifyLessonComplete,
+  onCustomSongImported as gamifyImport,
+  type GamificationState,
+  type Achievement,
+} from './game/gamification'
+import { loadGamification, saveGamification } from './storage/gamificationStore'
+import { GamificationBar } from './components/GamificationBar'
+import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
+import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete } from './storage/tutorialStore'
 import { TutorialScreen } from './components/tutorial/TutorialScreen'
@@ -95,12 +109,18 @@ export default function App() {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [fromLessonId, setFromLessonId] = useState<string | null>(null)
   const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
+  const [gamification, setGamification] = useState<GamificationState>(() => loadGamification())
+  const [achievementQueue, setAchievementQueue] = useState<AchievementToastData[]>([])
+  const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
+  const [micEnabled, setMicEnabled] = useState(false)
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
   const wrongTimerRef = useRef<number | null>(null)
   const finishedRef = useRef(false)
   const targetSigRef = useRef('')
+  const adaptiveRef = useRef<AdaptiveEngine | null>(null)
+  const sessionStartRef = useRef(0)
 
   const allSongs = useMemo(() => [...SONGS, ...customSongs], [customSongs])
   const song = useMemo(
@@ -132,6 +152,16 @@ export default function App() {
         return
       }
       const result = engine.press(midi)
+
+      if (result === 'hit') {
+        applyGamification(gamifyNoteHit(gamification, midi))
+        const decision = adaptiveRef.current?.onHit(midi, engine.songTime)
+        if (decision) setAdaptiveDecision(decision)
+      } else if (result === 'wrong') {
+        const decision = adaptiveRef.current?.onError(midi, engine.songTime)
+        if (decision) setAdaptiveDecision(decision)
+      }
+
       if (result === 'hit' && synthOn) {
         void playPianoNote(midi, 0.45).then(usedPiano => {
           if (!usedPiano && synthRef.current) {
@@ -146,6 +176,20 @@ export default function App() {
       }
     },
     [synthOn],
+  )
+
+  const applyGamification = useCallback(
+    (update: { state: GamificationState; newlyUnlocked: Achievement[] }) => {
+      setGamification(update.state)
+      saveGamification(update.state)
+      if (update.newlyUnlocked.length > 0) {
+        setAchievementQueue(prev => [
+          ...prev,
+          ...update.newlyUnlocked.map(a => ({ id: a.id, name: a.name, description: a.description })),
+        ])
+      }
+    },
+    [],
   )
 
   const noteOff = useCallback((midi: number) => {
@@ -169,11 +213,25 @@ export default function App() {
 
   const { status: midiStatus, deviceName } = useMidiInput(handleNote)
 
+  const audioInput = useAudioInput(handleNote)
+
+  const toggleMic = useCallback(async () => {
+    if (micEnabled) {
+      audioInput.stop()
+      setMicEnabled(false)
+    } else {
+      await audioInput.start()
+      setMicEnabled(true)
+    }
+  }, [micEnabled, audioInput])
+
   const startLessonPractice = useCallback(
     async (s: Song, lessonId: string) => {
       setLessonSongOverride(s)
       setFromLessonId(lessonId)
       engineRef.current = new GameEngine(s, mode)
+      adaptiveRef.current = new AdaptiveEngine(s.bpm, mode)
+      sessionStartRef.current = Date.now()
       finishedRef.current = false
       targetSigRef.current = ''
       setTargetSet(new Set())
@@ -205,6 +263,8 @@ export default function App() {
       setFromLessonId(null)
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
       engineRef.current = new GameEngine(s, practiceMode)
+      adaptiveRef.current = new AdaptiveEngine(s.bpm, practiceMode)
+      sessionStartRef.current = Date.now()
       finishedRef.current = false
       targetSigRef.current = ''
       setTargetSet(new Set())
@@ -257,6 +317,16 @@ export default function App() {
             const r = buildReport(engine)
             saveSession(r)
             setReport(r)
+            const gUpdate = gamifySessionEnd(gamification, {
+              notesHit: r.hits,
+              errors: r.wrongPresses,
+              misses: r.misses,
+              durationMs: Date.now() - sessionStartRef.current,
+              bpm: engine.song.bpm,
+              mode: engine.mode,
+              songName: engine.song.name,
+            })
+            applyGamification(gUpdate)
             setScreen('report')
           }, 600)
         }
@@ -345,6 +415,9 @@ export default function App() {
 
           {selectTab === 'learn' ? (
             <section className="mt-8 pb-16">
+              <div className="mb-4">
+                <GamificationBar state={gamification} />
+              </div>
               <TutorialScreen
                 lessons={LESSONS}
                 onOpenLesson={lesson => {
@@ -357,9 +430,28 @@ export default function App() {
           <>
           <hr className="mt-20 border-border-subtle" />
 
-          {/* MIDI 状态行 */}
-          <section className="mt-10">
+          {/* MIDI 状态行 + 麦克风开关 */}
+          <section className="mt-10 flex flex-wrap items-center gap-3">
             <MidiStatusBadge status={midiStatus} deviceName={deviceName} />
+            <button
+              onClick={() => void toggleMic()}
+              className={`glass flex items-center gap-2 rounded-full px-4 py-2 text-caption transition-all duration-200 ${
+                micEnabled
+                  ? 'border-accent/60 text-accent-strong'
+                  : 'text-secondary hover:border-border-strong hover:text-primary'
+              }`}
+            >
+              <span className="text-base leading-none">{micEnabled ? '🎙️' : '🎤'}</span>
+              {micEnabled ? '麦克风已开启' : '开启麦克风'}
+            </button>
+            {micEnabled && audioInput.state.detectedMidi !== null && (
+              <span className="text-caption tabular-nums text-info">
+                检测到：{audioInput.state.detectedMidi}
+              </span>
+            )}
+            {audioInput.state.status === 'error' && (
+              <span className="text-caption text-wrong">麦克风：{audioInput.state.error}</span>
+            )}
           </section>
 
           <hr className="mt-12 border-border-subtle" />
@@ -579,6 +671,7 @@ export default function App() {
             info={draft.info}
             onSave={song => {
               saveCustomSong(song, draft.source, draft.imageUrl)
+              applyGamification(gamifyImport(gamification))
               setCustomSongs(listCustomSongs())
               setDraft(null)
               setScreen('select')
@@ -603,7 +696,10 @@ export default function App() {
                 </span>
                 <PrimaryButton
                   onClick={() => {
-                    if (lesson !== null) markLessonComplete(lesson.id)
+                    if (lesson !== null) {
+                      markLessonComplete(lesson.id)
+                      applyGamification(gamifyLessonComplete(gamification, lesson.order))
+                    }
                     if (next !== null) {
                       setActiveLesson(next)
                       setFromLessonId(null)
@@ -631,6 +727,14 @@ export default function App() {
           />
         </div>
       )}
+      <AchievementToast
+        queue={achievementQueue}
+        onDismiss={id => setAchievementQueue(prev => prev.filter(a => a.id !== id))}
+      />
+      <AdaptiveIndicator
+        decision={adaptiveDecision}
+        onDismiss={() => setAdaptiveDecision(null)}
+      />
     </div>
   )
 }
