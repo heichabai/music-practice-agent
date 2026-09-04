@@ -491,10 +491,14 @@ export default function App() {
       {screen === 'play' && (
         <div className="screen-enter w-full max-w-4xl">
           {/* 极简 HUD：发丝下边框 + 细线进度条 */}
-          <div className="glass flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl px-4 py-3 text-sm max-sm:text-xs">
-            <GhostButton onClick={() => setScreen('select')} className="px-3 py-1 text-xs">
-              ‹ 退出
-            </GhostButton>
+          <div className="glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-5 py-3.5 text-sm max-sm:text-xs">
+            <button
+              onClick={() => setScreen('select')}
+              className="grid h-9 w-9 place-items-center rounded-full bg-[#2B2B33] text-base text-white shadow-[0_3px_0_#1E1E25] transition-all active:translate-y-[3px] active:shadow-none"
+              aria-label="退出练习"
+            >
+              ‹
+            </button>
             <span className="font-medium text-primary">
               {song.name}
               <span className="ml-2 text-muted">{MODE_INFO[mode].label}</span>

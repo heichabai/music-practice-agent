@@ -274,7 +274,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
       </div>
 
       <section className="mt-12">
-        <h1 className="text-3xl font-light tracking-tight text-primary">导入乐谱</h1>
+        <h1 className="text-h2 font-black tracking-tight text-primary">📥 导入乐谱</h1>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-secondary">
           上传乐谱图片由 AI 识别，或直接上传 MIDI 文件（100% 精确）。
           导入后都会进入校对编辑器，试听无误再存入曲库。

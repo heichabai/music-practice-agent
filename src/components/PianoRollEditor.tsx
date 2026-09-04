@@ -255,7 +255,7 @@ export function PianoRollEditor({ initial, source, info, onSave, onCancel }: Pro
         <GhostButton onClick={onCancel} className="px-3 py-1 text-xs">
           ‹ 返回
         </GhostButton>
-        <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        <span className="text-xs font-black uppercase tracking-wider text-[#1CB0F6]">
           {source === 'image' ? '识谱校对' : source === 'omr' ? 'OMR 校对' : 'MIDI 校对'}
         </span>
         <input
