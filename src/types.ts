@@ -2,6 +2,10 @@ export interface Note {
   midi: number
   time: number
   duration: number
+  /** 指法编号 1-5（拇指=1 小指=5），undefined = 未知/不显示 */
+  finger?: number
+  /** 左右手标记，undefined = 未分配 */
+  hand?: 'L' | 'R'
 }
 
 export interface Song {

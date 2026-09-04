@@ -115,6 +115,9 @@ export default function App() {
   const [achievementQueue, setAchievementQueue] = useState<AchievementToastData[]>([])
   const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
   const [micEnabled, setMicEnabled] = useState(false)
+  const [handFilter, setHandFilter] = useState<'R' | 'L' | 'both'>('both')
+  const [tempoScale, setTempoScale] = useState(1)
+  const [combo, setCombo] = useState(0)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
   const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
 
@@ -158,10 +161,12 @@ export default function App() {
       const result = engine.press(midi)
 
       if (result === 'hit') {
+        setCombo(prev => prev + 1)
         applyGamification(gamifyNoteHit(gamification, midi))
         const decision = adaptiveRef.current?.onHit(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       } else if (result === 'wrong') {
+        setCombo(0)
         const decision = adaptiveRef.current?.onError(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       }
@@ -222,6 +227,13 @@ export default function App() {
   const freePlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRecorder = useVideoRecorder(freePlayCanvasRef)
   const freePlayLayout = useMemo(() => new KeyboardLayout(36, 95), [])
+  const fingerMap = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const n of song.notes) {
+      if (n.finger !== undefined) map.set(n.midi, n.finger)
+    }
+    return map
+  }, [song])
 
   const toggleMic = useCallback(async () => {
     if (micEnabled) {
@@ -246,6 +258,7 @@ export default function App() {
       setPressedSet(new Set())
       setWrong(null)
       setReport(null)
+      setCombo(0)
       try {
         await Tone.start()
         Tone.getContext().lookAhead = 0.005
@@ -265,12 +278,21 @@ export default function App() {
   )
 
   const startSong = useCallback(
-    async (id: string, practiceMode: PracticeMode) => {
+    async (id: string, practiceMode: PracticeMode, filter?: 'R' | 'L' | 'both', scale?: number) => {
       setSongId(id)
       setLessonSongOverride(null)
       setFromLessonId(null)
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
-      engineRef.current = new GameEngine(s, practiceMode)
+      const filtered: typeof s = {
+        ...s,
+        notes: filter && filter !== 'both'
+          ? s.notes.filter(n => n.hand === filter || n.hand === undefined)
+          : s.notes,
+      }
+      if (scale !== undefined && scale !== 1) {
+        filtered.bpm = Math.round(s.bpm * scale)
+      }
+      engineRef.current = new GameEngine(filtered, practiceMode)
       adaptiveRef.current = new AdaptiveEngine(s.bpm, practiceMode)
       sessionStartRef.current = Date.now()
       finishedRef.current = false
@@ -389,7 +411,7 @@ export default function App() {
             </p>
             <div className="mt-10 flex items-center gap-4">
               <PrimaryButton
-                onClick={() => void startSong(SONGS[0].id, mode)}
+                onClick={() => void startSong(SONGS[0].id, mode, handFilter, tempoScale)}
                 className="bg-gradient-accent px-7 py-3 shadow-[0_6px_24px_rgb(245_158_11/0.3)] transition-shadow hover:shadow-[0_8px_32px_rgb(245_158_11/0.45)]"
               >
                 开始练习
@@ -491,6 +513,40 @@ export default function App() {
             <p className="mt-3 max-w-md text-sm text-muted">
               {MODE_INFO[mode].desc}
             </p>
+
+            <div className="mt-4 flex items-center gap-2">
+              <span className="text-caption text-muted">声部</span>
+              <div className="flex overflow-hidden rounded-full border border-border-subtle">
+                {([['R', '右手'], ['L', '左手'], ['both', '双手']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setHandFilter(val)}
+                    className={`px-3.5 py-1.5 text-caption transition-colors ${
+                      handFilter === val ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-caption text-muted">速度</span>
+              <div className="flex overflow-hidden rounded-full border border-border-subtle">
+                {([0.5, 0.75, 1] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setTempoScale(v)}
+                    className={`px-3.5 py-1.5 text-caption tabular-nums transition-colors ${
+                      tempoScale === v ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    {v === 1 ? '原速' : `${v * 100}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
           </section>
 
           <hr className="mt-12 border-border-subtle" />
@@ -506,7 +562,7 @@ export default function App() {
                   {customSongs.map(s => (
                     <div key={s.id} className="group relative">
                       <button
-                        onClick={() => void startSong(s.id, mode)}
+                        onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
                         className="sheen group flex w-full items-center gap-4 rounded-xl border border-border-subtle bg-surface px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-raised"
                       >
                         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border-subtle text-xs font-semibold text-secondary">
@@ -545,7 +601,7 @@ export default function App() {
               {SONGS.map(s => (
                 <div key={s.id} className="group">
                   <button
-                    onClick={() => void startSong(s.id, mode)}
+                    onClick={() => void startSong(s.id, mode, handFilter, tempoScale)}
                     className="sheen group flex w-full items-center gap-4 rounded-xl border border-white/[0.05] bg-white/[0.025] px-4 py-3.5 text-left backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:bg-white/[0.05] hover:shadow-panel"
                   >
                     <CoverTile song={s} />
@@ -611,6 +667,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-x-5 tabular-nums">
               <span className="text-hit">命中 {hud?.hits ?? 0}</span>
+            {combo >= 3 && <span className="font-bold text-accent-strong">{combo} 连击</span>}
               {mode === 'free' && <span className="text-miss">漏弹 {hud?.misses ?? 0}</span>}
               <span className="text-wrong">错音 {hud?.errors ?? 0}</span>
               <span className="text-secondary">
@@ -650,6 +707,7 @@ export default function App() {
               pressedSet={pressedSet}
               targetSet={targetSet}
               wrong={wrong}
+              fingerMap={fingerMap}
             />
           </div>
 

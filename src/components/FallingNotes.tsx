@@ -306,6 +306,16 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         ctx.fillStyle = fill
         roundRect(ctx, x, top, w, h, 5)
         ctx.fill()
+
+        // 指法编号
+        if (note.finger !== undefined && state !== 'missed' && h >= 18) {
+          ctx.shadowBlur = 0
+          ctx.fillStyle = 'rgba(10, 10, 11, 0.8)'
+          ctx.font = `bold ${Math.min(13, w * 0.45)}px -apple-system, sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(String(note.finger), x + w / 2, top + h / 2)
+        }
       }
 
       // ---------- 判定线：1px 发丝 ----------
