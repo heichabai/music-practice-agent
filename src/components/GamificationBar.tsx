@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  levelFromXp,
   levelName,
   xpToNextLevel,
   DAILY_NOTE_GOAL,
@@ -11,7 +12,8 @@ interface Props {
 }
 
 export function GamificationBar({ state }: Props) {
-  const { level, progress } = useMemo(() => xpToNextLevel(state.xp), [state.xp])
+  const { progress } = useMemo(() => xpToNextLevel(state.xp), [state.xp])
+  const level = useMemo(() => levelFromXp(state.xp), [state.xp])
   const goalProgress = Math.min(1, state.todayNotes / DAILY_NOTE_GOAL)
   const hasStreak = state.streak > 0
 

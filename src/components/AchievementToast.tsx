@@ -16,12 +16,11 @@ export function AchievementToast({ queue, onDismiss }: Props) {
 
   useEffect(() => {
     if (queue.length > 0 && visible === null) {
-      setVisible(queue[0])
+      const item = queue[0]
+      setVisible(item)
       const timer = window.setTimeout(() => {
-        if (visible !== null) {
-          onDismiss(visible.id)
-          setVisible(null)
-        }
+        onDismiss(item.id)
+        setVisible(null)
       }, 3500)
       return () => window.clearTimeout(timer)
     }
