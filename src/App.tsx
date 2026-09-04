@@ -33,12 +33,14 @@ import { loadGamification, saveGamification } from './storage/gamificationStore'
 import { GamificationBar } from './components/GamificationBar'
 import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
 import { AdaptiveIndicator } from './components/AdaptiveIndicator'
+import { FreePlayCanvas } from './components/FreePlayCanvas'
+import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete } from './storage/tutorialStore'
 import { TutorialScreen } from './components/tutorial/TutorialScreen'
 import { LessonScreen } from './components/tutorial/LessonScreen'
 
-type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson'
+type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
 
 // 电脑键盘 → midi（白键 A S D F G H J K，黑键 W E T Y U）
 const KEYBOARD_MAP: Record<string, number> = {
@@ -113,6 +115,8 @@ export default function App() {
   const [achievementQueue, setAchievementQueue] = useState<AchievementToastData[]>([])
   const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
   const [micEnabled, setMicEnabled] = useState(false)
+  const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
+  const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -214,6 +218,10 @@ export default function App() {
   const { status: midiStatus, deviceName } = useMidiInput(handleNote)
 
   const audioInput = useAudioInput(handleNote)
+
+  const freePlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const videoRecorder = useVideoRecorder(freePlayCanvasRef)
+  const freePlayLayout = useMemo(() => new KeyboardLayout(36, 95), [])
 
   const toggleMic = useCallback(async () => {
     if (micEnabled) {
@@ -553,7 +561,26 @@ export default function App() {
               ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => {
+                  setFreePlayNoteCount(0)
+                  setFreePlayCurrentNote('')
+                  void Tone.start()
+                  preloadPiano()
+                  setScreen('freeplay')
+                }}
+                className="sheen group flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-dim/30 px-5 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
+              >
+                <span className="text-2xl leading-none">🎹</span>
+                <span>
+                  <span className="block text-body font-medium text-primary">自由弹奏</span>
+                  <span className="block text-caption text-muted">无谱自由弹，音符实时可视化，可录制视频</span>
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-4">
               <GhostButton onClick={() => setScreen('import')}>导入乐谱 / MIDI</GhostButton>
               <span className="text-xs text-muted">
                 乐谱图片 AI 识别，或 MIDI 直传，校对后入库
@@ -648,6 +675,78 @@ export default function App() {
               window.scrollTo({ top: 0 })
             }}
           />
+        </div>
+      )}
+
+      {screen === 'freeplay' && (
+        <div className="screen-enter w-full max-w-4xl">
+          <div className="glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3 text-sm">
+            <GhostButton
+              onClick={() => {
+                if (videoRecorder.state === 'recording') videoRecorder.stop()
+                setScreen('select')
+              }}
+              className="px-3 py-1 text-xs"
+            >
+              ‹ 退出
+            </GhostButton>
+            <span className="font-medium text-primary">自由弹奏</span>
+            <div className="flex-1" />
+            {freePlayCurrentNote !== '' && (
+              <span className="rounded-full bg-accent/15 px-3 py-1 text-body font-semibold tabular-nums text-accent-strong">
+                {freePlayCurrentNote}
+              </span>
+            )}
+            <span className="text-caption tabular-nums text-muted">{freePlayNoteCount} 音</span>
+            <button
+              onClick={() => setSynthOn(v => !v)}
+              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+            >
+              伴奏音 {synthOn ? '开' : '关'}
+            </button>
+            <button
+              onClick={() => {
+                if (videoRecorder.state === 'recording') videoRecorder.stop()
+                else videoRecorder.start()
+              }}
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
+                videoRecorder.state === 'recording'
+                  ? 'bg-wrong/20 text-wrong'
+                  : 'bg-accent/15 text-accent-strong hover:bg-accent/25'
+              }`}
+            >
+              {videoRecorder.state === 'recording' ? (
+                <>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-wrong" />
+                  停止 {String(Math.floor(videoRecorder.duration / 60)).padStart(1, '0')}:
+                  {String(videoRecorder.duration % 60).padStart(2, '0')}
+                </>
+              ) : (
+                '● 录制视频'
+              )}
+            </button>
+          </div>
+
+          <div className="mt-3 overflow-hidden rounded-b-xl">
+            <FreePlayCanvas
+              canvasRef={freePlayCanvasRef}
+              layout={freePlayLayout}
+              width={width || 900}
+              onNoteCountChange={setFreePlayNoteCount}
+              onCurrentNoteChange={setFreePlayCurrentNote}
+            />
+            <PianoKeyboard
+              layout={freePlayLayout}
+              width={width || 900}
+              pressedSet={pressedSet}
+              targetSet={new Set()}
+              wrong={null}
+            />
+          </div>
+
+          <p className="mt-3 text-center text-caption text-muted">
+            弹奏任何音符 · 没有对错 · 享受音乐
+          </p>
         </div>
       )}
 
