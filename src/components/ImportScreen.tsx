@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { importMidiFile } from '../game/midiImport'
-import { visionChat } from '../ai/visionClient'
-import { SHEET_PROMPT, parseSheetResponse, mergePageDrafts, type SheetDraft } from '../ai/sheetPrompts'
-import { pdfToImageDataUrls, splitImageDataUrl, MAX_PDF_PAGES } from '../ai/pdfPages'
 import type { Song } from '../types'
 import { PrimaryButton, GhostButton } from './ui/Button'
-import { IconChevronRight, IconMidiKeys, IconScanFrame, IconSparkles } from './icons'
+import { IconChevronRight, IconMidiKeys, IconScanFrame } from './icons'
 
 interface Props {
   onDraft: (
@@ -17,12 +14,11 @@ interface Props {
   onCancel: () => void
 }
 
-const MAX_EDGE = 1568
 const STORE_EDGE = 1100
 
 async function compressImage(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, 1568 / Math.max(bitmap.width, bitmap.height))
   const w = Math.round(bitmap.width * scale)
   const h = Math.round(bitmap.height * scale)
   const canvas = document.createElement('canvas')
@@ -54,10 +50,9 @@ async function shrinkForStore(dataUrl: string): Promise<string> {
 }
 
 export function ImportScreen({ onDraft, onCancel }: Props) {
-  const [busy, setBusy] = useState<'image' | 'midi' | 'omr' | null>(null)
+  const [busy, setBusy] = useState<'midi' | 'omr' | null>(null)
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
-  const imageInputRef = useRef<HTMLInputElement | null>(null)
   const midiInputRef = useRef<HTMLInputElement | null>(null)
   const omrInputRef = useRef<HTMLInputElement | null>(null)
   const [elapsed, setElapsed] = useState(0)
@@ -71,159 +66,41 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
     return () => window.clearInterval(timer)
   }, [busy])
 
-  const finishDraft = (draft: SheetDraft, pages: number, imageUrl?: string) => {
-    const truncationHint = draft.salvaged ? '；识别输出曾被截断，后半段请重点核对' : ''
-    onDraft(
-      {
-        id: `img-${Date.now().toString(36)}`,
-        name: draft.name,
-        bpm: draft.bpm,
-        notes: draft.notes,
-      },
-      'image',
-      (pages > 1
-        ? `AI 识别 ${pages} 页共 ${draft.notes.length} 个音（按小节自动衔接）`
-        : `AI 识别出 ${draft.notes.length} 个音`) +
-        truncationHint +
-        '，请试听并校对后保存',
-      imageUrl !== '' ? imageUrl : undefined,
-    )
-  }
-
-  const recognizeOnce = async (dataUrl: string, sourceName: string, allowEmpty: boolean) => {
-    const { content, finishReason } = await visionChat(SHEET_PROMPT, dataUrl)
-    return parseSheetResponse(content, sourceName, { allowEmpty, finishReason })
-  }
-
-  const recognizeWithSplit = async (
-    dataUrl: string,
-    sourceName: string,
-    allowEmpty: boolean,
-  ): Promise<SheetDraft> => {
-    const first = await recognizeOnce(dataUrl, sourceName, allowEmpty)
-    if (!first.salvaged) return first
-    for (const parts of [2, 4]) {
-      setProgress(`识别输出被截断，正在分 ${parts} 段重新识别…`)
-      const strips = await splitImageDataUrl(dataUrl, parts)
-      const drafts: SheetDraft[] = []
-      for (const strip of strips) {
-        try {
-          drafts.push(await recognizeOnce(strip, sourceName, true))
-        } catch {
-          // 跳过识别失败的片段
-        }
-      }
-      if (!drafts.some(d => d.notes.length > 0)) continue
-      const merged = mergePageDrafts(drafts)
-      if (drafts.every(d => !d.salvaged)) return merged
-      if (parts === 4) return { ...merged, salvaged: true }
-    }
-    return first
-  }
-
-  const recognizePdf = async (file: File): Promise<{ draft: SheetDraft; pages: number }> => {
-    const buffer = await file.arrayBuffer()
-    const pages = await pdfToImageDataUrls(buffer)
-    const sourceName = file.name.replace(/\.[^.]+$/, '')
-    const drafts: SheetDraft[] = []
-    let skipped = 0
-    for (let i = 0; i < pages.length; i++) {
-      setProgress(`正在识别第 ${i + 1}/${pages.length} 页…`)
-      try {
-        drafts.push(await recognizeWithSplit(pages[i], sourceName, true))
-      } catch {
-        try {
-          drafts.push(await recognizeWithSplit(pages[i], sourceName, true))
-        } catch {
-          skipped++
-        }
-      }
-    }
-    if (skipped > 0 && drafts.some(d => d.notes.length > 0)) {
-      setProgress(`已跳过 ${skipped} 个识别失败/空白页`)
-    }
-    return { draft: mergePageDrafts(drafts), pages: pages.length }
-  }
-
-  const handleImage = async (file: File) => {
-    setBusy('image')
-    setError('')
-    setProgress('')
-    try {
-      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
-      if (isPdf) {
-        setProgress('正在解析 PDF…')
-        const { draft, pages } = await recognizePdf(file)
-        finishDraft(draft, pages)
-      } else {
-        setProgress('正在识别乐谱…')
-        const dataUrl = await compressImage(file)
-        const sourceName = file.name.replace(/\.[^.]+$/, '')
-        let draft: SheetDraft
-        try {
-          draft = await recognizeWithSplit(dataUrl, sourceName, false)
-        } catch {
-          draft = await recognizeWithSplit(dataUrl, sourceName, false)
-        }
-        finishDraft(draft, 1, await shrinkForStore(dataUrl))
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(null)
-      setProgress('')
-      if (imageInputRef.current) imageInputRef.current.value = ''
-    }
-  }
-
   const handleOmr = async (file: File) => {
     setBusy('omr')
     setError('')
-    setProgress('本地 OMR 引擎识别中…')
+    setProgress('本地 OMR 引擎识别中（首次会自动启动服务）…')
     try {
-      const res = await fetch(
-        '/api/omr?name=' + encodeURIComponent(file.name),
-        {
+      let res: Response
+      try {
+        res = await fetch('/api/omr?name=' + encodeURIComponent(file.name), {
           method: 'POST',
           headers: { 'Content-Type': 'application/octet-stream' },
           body: await file.arrayBuffer(),
-        },
-      )
-      const data = (await res.json()) as {
+        })
+      } catch {
+        throw new Error('无法连接本地 OMR 服务（自动启动失败），或改用 MIDI 导入')
+      }
+      // 服务未启动 / 代理 404 时返回的是 HTML 错误页，res.json() 会抛
+      // "The string did not match the expected pattern" —— 先拦截给可读的指引
+      let data: {
         name?: string
         bpm?: number
         notes?: Array<{ midi: number; time: number; duration: number }>
         error?: string
         lowQuality?: boolean
       }
+      try {
+        data = (await res.json()) as typeof data
+      } catch {
+        throw new Error('本地 OMR 服务未响应（已尝试自动启动），可手动运行 npm run omr 排查，或改用 MIDI 导入')
+      }
       if (!res.ok) throw new Error(data.error ?? `OMR 服务错误（${res.status}）`)
       if (!Array.isArray(data.notes) || data.notes.length === 0) {
         throw new Error('没有识别出音符')
       }
       if (data.lowQuality) {
-        setProgress('图片质量不足以精确识别，自动切换 AI 通道（约 2 分钟）…')
-        const dataUrl = await compressImage(file)
-        const sourceName = file.name.replace(/\.[^.]+$/, '')
-        let draft
-        try {
-          draft = await recognizeWithSplit(dataUrl, sourceName, false)
-        } catch {
-          throw new Error(
-            '图片质量不足：精确识别无有效结果，AI 兜底也失败了。建议改用 PDF 文件或更清晰的截图',
-          )
-        }
-        onDraft(
-          {
-            id: `img-${Date.now().toString(36)}`,
-            name: draft.name,
-            bpm: draft.bpm,
-            notes: draft.notes,
-          },
-          'image',
-          `OMR 判定图片质量不足，已由 AI 兜底识别出 ${draft.notes.length} 个音（准确率有限），请仔细校对后保存`,
-          await shrinkForStore(dataUrl),
-        )
-        return
+        throw new Error('图片质量不足以精确识别。建议换更清晰的扫描件 / PDF 原文件，或改用 MIDI 导入')
       }
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
       const storeImage = isPdf ? undefined : await shrinkForStore(await compressImage(file))
@@ -236,7 +113,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         },
         'omr',
         `本地 OMR 精确识别出 ${data.notes.length} 个音（谱面全部声部，双手谱需双手练习），请试听确认后保存`,
-        storeImage !== '' ? storeImage : undefined,
+        storeImage !== '' && storeImage !== undefined ? storeImage : undefined,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -276,8 +153,8 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
       <section className="mt-12">
         <h1 className="text-h2 font-black tracking-tight text-primary">📥 导入乐谱</h1>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-secondary">
-          上传乐谱图片由 AI 识别，或直接上传 MIDI 文件（100% 精确）。
-          导入后都会进入校对编辑器，试听无误再存入曲库。
+          上传乐谱图片 / PDF 由本地 OMR 引擎离线识别（印刷谱准确率高），或直接导入
+          MIDI 文件（100% 精确）。导入后都会进入校对编辑器，试听无误再存入曲库。
         </p>
 
         <div className="mt-6 flex items-center gap-2 text-micro text-muted">
@@ -303,7 +180,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
             </p>
             <p className="mt-1 text-xs text-muted">
               专业乐谱识别引擎（Audiveris），在本机离线运行，印刷五线谱准确率高；
-              支持图片与 PDF
+              支持图片与 PDF，首次识别会自动启动本地识别服务
             </p>
             <input
               ref={omrInputRef}
@@ -322,39 +199,6 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
               {busy === 'omr'
                 ? `${progress}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
                 : '选择乐谱（本地精确识别）'}
-            </PrimaryButton>
-            </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
-            <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-sky-400/85 to-blue-600/85 text-white shadow-[0_4px_16px_rgb(56_189_248/0.3)]">
-              <IconSparkles className="h-5 w-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-primary">乐谱图片 / PDF · AI 识别</p>
-            <p className="mt-1 text-xs text-muted">
-              支持五线谱图片（截图或清晰照片）与 PDF 乐谱（最多识别前 {MAX_PDF_PAGES} 页，按小节自动衔接）；
-              识别单旋律，建议使用清晰文件，糊照准确率会下降
-            </p>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*,.pdf,application/pdf"
-              className="hidden"
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) void handleImage(file)
-              }}
-            />
-            <PrimaryButton
-              className={`mt-4 ${busy !== null ? 'pointer-events-none opacity-40' : ''}`}
-              onClick={() => imageInputRef.current?.click()}
-            >
-              {busy === 'image'
-                ? `${progress || '正在识别乐谱…'}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
-                : '选择乐谱图片或 PDF'}
             </PrimaryButton>
             </div>
             </div>

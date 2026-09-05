@@ -1,7 +1,84 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { HttpsProxyAgent } from 'https-proxy-agent'
+import { spawn, type ChildProcess } from 'node:child_process'
+
+const OMR_PORT = Number(process.env.OMR_PORT ?? 5175)
+
+/** 点击"本地精确识别"时按需拉起 OMR 服务（scripts/omr-server.mjs）。
+ *  已在运行则直接放行；未运行则 spawn 并轮询 /health 就绪后再交给代理。 */
+function omrAutostart(): Plugin {
+  let proc: ChildProcess | null = null
+  let starting: Promise<void> | null = null
+
+  const ping = async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`http://localhost:${OMR_PORT}/health`, {
+        signal: AbortSignal.timeout(800),
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
+  const ensure = (): Promise<void> => {
+    if (starting) return starting
+    starting = (async () => {
+      if (await ping()) return
+      console.log('[omr] 未检测到识别服务，正在自动启动…')
+      proc = spawn(process.execPath, ['scripts/omr-server.mjs'], {
+        cwd: process.cwd(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      proc.stdout?.on('data', d => process.stdout.write(`[omr] ${d}`))
+      proc.stderr?.on('data', d => process.stderr.write(`[omr] ${d}`))
+      // 进程退出后允许下次请求重试启动
+      proc.on('exit', () => {
+        proc = null
+        starting = null
+      })
+      const deadline = Date.now() + 15000
+      while (Date.now() < deadline) {
+        if (await ping()) {
+          console.log('[omr] 识别服务已就绪')
+          return
+        }
+        await new Promise(r => setTimeout(r, 400))
+      }
+      proc.kill()
+      proc = null
+      starting = null
+      throw new Error('启动超时')
+    })()
+    return starting
+  }
+
+  return {
+    name: 'omr-autostart',
+    configureServer(server) {
+      server.middlewares.use('/api/omr', (_req, res, next) => {
+        ensure()
+          .then(() => next())
+          .catch(err => {
+            res.statusCode = 503
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+              JSON.stringify({
+                error: `OMR 服务自动启动失败（${err instanceof Error ? err.message : err}），可手动运行 npm run omr 排查`,
+              }),
+            )
+          })
+      })
+      const cleanup = () => {
+        proc?.kill()
+      }
+      server.httpServer?.on('close', cleanup)
+      process.on('exit', cleanup)
+    },
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -40,7 +117,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), omrAutostart()],
     server: {
       proxy: {
         '/api/deepseek': {
@@ -50,7 +127,7 @@ export default defineConfig(({ mode }) => {
           ...(deepseekKey ? { headers: { Authorization: `Bearer ${deepseekKey}` } } : {}),
         },
         '/api/omr': {
-          target: 'http://localhost:5175',
+          target: `http://localhost:${OMR_PORT}`,
           changeOrigin: true,
           rewrite: path => path.replace(/^\/api\/omr/, '/omr'),
         },
