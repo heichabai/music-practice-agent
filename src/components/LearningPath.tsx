@@ -1,6 +1,6 @@
 import type { Lesson } from '../game/lessons'
 import { UNITS } from '../game/lessons'
-import { getTutorialProgress } from '../storage/tutorialStore'
+import { getTutorialProgress, isDevMode } from '../storage/tutorialStore'
 
 interface Props {
   lessons: Lesson[]
@@ -10,9 +10,11 @@ interface Props {
 /**
  * 多邻国风格学习路径：
  * 按 Unit 分段，单元开头渲染彩色横幅；
- * 之字形排列的大圆节点，完成=金色✓，当前=单元色+脉冲，未来=灰色锁
+ * 之字形排列的大圆节点，完成=金色✓，当前=单元色+脉冲，未来=灰色锁。
+ * 开发者模式（顶栏 🛠 开启）：全部解锁，节点下方显示课程 id。
  */
 export function LearningPath({ lessons, onOpenLesson }: Props) {
+  const dev = isDevMode()
   const completed = getTutorialProgress().completed
   const currentIdx = lessons.findIndex(l => !completed.includes(l.id))
   const current = currentIdx === -1 ? lessons.length : currentIdx
@@ -42,7 +44,7 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
         {lessons.map((lesson, i) => {
           const isDone = completed.includes(lesson.id)
           const isCurrent = i === current
-          const isLocked = i > current
+          const isLocked = !dev && i > current
           const unit = UNITS.find(u => u.id === lesson.unit) ?? UNITS[0]
           const color = unit.color
 
@@ -115,6 +117,9 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
                 >
                   {lesson.title}
                 </span>
+                {dev && (
+                  <span className="mt-0.5 font-mono text-[10px] text-gray-400">{lesson.id}</span>
+                )}
               </button>
             </div>
           )

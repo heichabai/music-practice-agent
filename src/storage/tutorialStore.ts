@@ -54,3 +54,27 @@ export function markLessonComplete(lessonId: string): TutorialProgress {
 export function isLessonCompleted(lessonId: string): boolean {
   return getTutorialProgress().completed.includes(lessonId)
 }
+
+// ---------- 开发者模式：解锁全部课程，方便逐课检查 ----------
+const DEV_KEY = 'mpa.dev.v1'
+
+export function isDevMode(): boolean {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage.getItem(DEV_KEY) === '1'
+  } catch {
+    // ignore
+  }
+  return memory.get(DEV_KEY) === '1'
+}
+
+export function setDevMode(on: boolean): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DEV_KEY, on ? '1' : '0')
+      return
+    }
+  } catch {
+    // ignore
+  }
+  memory.set(DEV_KEY, on ? '1' : '0')
+}

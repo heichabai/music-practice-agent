@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Lesson, LessonQuiz } from '../../game/lessons'
+import type { Lesson, LessonQuiz, DiagramKind } from '../../game/lessons'
 import { SONGS } from '../../game/songs'
 import { markLessonComplete } from '../../storage/tutorialStore'
 import { askTutor } from '../../ai/tutorChat'
@@ -15,6 +15,18 @@ import {
   DiagramStrike,
   DiagramBothHands,
   DiagramPosture,
+  DiagramOctaves,
+  DiagramClefs,
+  DiagramPositions,
+  DiagramDurations,
+  DiagramRests,
+  DiagramTimeSig,
+  DiagramEighth,
+  DiagramDotted,
+  DiagramChord,
+  DiagramChordProg,
+  DiagramMetronome,
+  DiagramForm,
 } from './Diagrams'
 
 interface Props {
@@ -25,14 +37,28 @@ interface Props {
   onNextLesson: (lesson: Lesson) => void
 }
 
-function Diagram({ kind }: { kind: 'keyboard' | 'staff' | 'fingers' | 'posture' | 'handshape' | 'strike' | 'bothhands' }) {
-  if (kind === 'keyboard') return <DiagramKeyboard />
-  if (kind === 'staff') return <DiagramStaff />
-  if (kind === 'posture') return <DiagramPosture />
-  if (kind === 'handshape') return <DiagramHandShape />
-  if (kind === 'strike') return <DiagramStrike />
-  if (kind === 'bothhands') return <DiagramBothHands />
-  return <DiagramFingers />
+function Diagram({ kind }: { kind: DiagramKind }) {
+  switch (kind) {
+    case 'keyboard': return <DiagramKeyboard />
+    case 'staff': return <DiagramStaff />
+    case 'posture': return <DiagramPosture />
+    case 'handshape': return <DiagramHandShape />
+    case 'strike': return <DiagramStrike />
+    case 'bothhands': return <DiagramBothHands />
+    case 'octaves': return <DiagramOctaves />
+    case 'clefs': return <DiagramClefs />
+    case 'positions': return <DiagramPositions />
+    case 'durations': return <DiagramDurations />
+    case 'rests': return <DiagramRests />
+    case 'timesig': return <DiagramTimeSig />
+    case 'eighth': return <DiagramEighth />
+    case 'dotted': return <DiagramDotted />
+    case 'chord': return <DiagramChord />
+    case 'chordprog': return <DiagramChordProg />
+    case 'metronome': return <DiagramMetronome />
+    case 'form': return <DiagramForm />
+    default: return <DiagramFingers />
+  }
 }
 
 function QuizBlock({ quiz, onCorrect }: { quiz: LessonQuiz; onCorrect: () => void }) {
@@ -242,13 +268,22 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
         <p className="mt-3 text-caption text-muted">{lesson.practiceNote}</p>
       )}
 
-      {completedNow && nextLesson !== null && (
+      {nextLesson !== null && (
         <button
-          onClick={() => onNextLesson(nextLesson)}
+          onClick={() => {
+            // 点击下一课 = 自动视为完成本课
+            if (!completedNow) {
+              markLessonComplete(lesson.id)
+              setCompletedNow(true)
+            }
+            onNextLesson(nextLesson)
+          }}
           className="sheen group mt-4 flex w-full items-center gap-4 rounded-xl border border-accent/40 bg-accent-dim/30 px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
         >
           <span className="flex-1">
-            <span className="block text-caption text-accent-strong">下一课</span>
+            <span className="block text-caption text-accent-strong">
+              下一课{completedNow ? '' : '（自动完成本课）'}
+            </span>
             <span className="block text-body font-medium text-primary">
               第 {nextLesson.order} 课 · {nextLesson.title}
             </span>

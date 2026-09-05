@@ -1,9 +1,14 @@
 import type { Song } from '../types'
 
+export type DiagramKind =
+  | 'keyboard' | 'staff' | 'fingers' | 'posture' | 'handshape' | 'strike' | 'bothhands'
+  | 'octaves' | 'clefs' | 'positions' | 'durations' | 'rests' | 'timesig'
+  | 'eighth' | 'dotted' | 'chord' | 'chordprog' | 'metronome' | 'form'
+
 export interface LessonStep {
   heading: string
   body: string
-  diagram?: 'keyboard' | 'staff' | 'fingers' | 'posture' | 'handshape' | 'strike' | 'bothhands'
+  diagram?: DiagramKind
 }
 
 export interface LessonTask {
@@ -79,6 +84,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '找到 C，就找到了原点',
         body: '每组"2 个相邻黑键"紧左边的那个白键，就是 C。整个键盘从左到右有 8 个 C，越往右音越高。',
+        diagram: 'octaves',
       },
       {
         heading: '中央 C（C4）',
@@ -103,6 +109,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '七个字母',
         body: '白键按 C、D、E、F、G、A、B 七个字母命名，从 C 开始向右依次排列。记住这个顺序，就像记住星期一到星期日。',
+        diagram: 'keyboard',
       },
       {
         heading: '循环往复',
@@ -111,6 +118,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '什么是八度',
         body: '隔一个八度的两个 C，听起来"是同一个音，只是高了"。它们相差 12 个键（7 白 + 5 黑），音高恰好相差一倍。',
+        diagram: 'octaves',
       },
       {
         heading: '黑键怎么命名',
@@ -197,6 +205,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '什么是五指位',
         body: 'C 五指位（C Position）就是刚才练过的：1-5 指分别压住 C D E F G。初级教材 80% 的曲子都在这个把位里。',
+        diagram: 'handshape',
       },
       {
         heading: '上行与下行',
@@ -262,14 +271,17 @@ export const LESSONS: Lesson[] = [
       {
         heading: '高音谱号（𝄞）',
         body: '写在谱表开头、像花体符号的那个，叫高音谱号，也叫 G 谱号——它的螺旋中心正好圈住 G4 所在的第二线。带高音谱号的谱表记录右手音区。',
+        diagram: 'clefs',
       },
       {
         heading: '低音谱号（𝄢）',
         body: '左手音区用低音谱号记录，也叫 F 谱号——它的两个圆点夹着 F3 所在的第四线。低音谱表上的音整体低一个八度。',
+        diagram: 'clefs',
       },
       {
         heading: '大谱表',
         body: '钢琴谱通常把高低音谱表上下叠起来、用括号连住，这叫"大谱表"。上手下谱，中央 C 正好卡在中间——像一对翅膀围绕它展开。',
+        diagram: 'clefs',
       },
       {
         heading: '谱号决定读法',
@@ -288,6 +300,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '从 C4 出发',
         body: '高音谱表里：C4 在下加一线，D4 在下加一间（谱表正下方），E4 在第 1 线，F4 在第 1 间，G4 在第 2 线。线和间交替着往上爬。',
+        diagram: 'positions',
       },
       {
         heading: '音名跟着位置走',
@@ -296,6 +309,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '先记三个"地标"',
         body: '入门不用背全部位置，先记三个地标：下加一线 = C、第 1 线 = E、第 2 间 = A。其他音从地标数过去，几秒钟就能认出来。',
+        diagram: 'positions',
       },
       {
         heading: '眼—脑—手',
@@ -324,14 +338,17 @@ export const LESSONS: Lesson[] = [
       {
         heading: '全音符与二分音符',
         body: '空心椭圆、没有符杆的是全音符，弹 4 拍；空心加符杆的是二分音符，弹 2 拍。它们都是"长音"，弹下去要数拍。',
+        diagram: 'durations',
       },
       {
         heading: '四分音符',
         body: '实心加符杆的是四分音符，弹 1 拍——它是钢琴曲里最常见的音符，你可以把它当作"标准步幅"。',
+        diagram: 'durations',
       },
       {
         heading: '八分音符',
         body: '四分音符的符尾加一面小旗（或两音间连一条横线）就是八分音符，只弹半拍——两个八分音符加起来正好一拍。规律：每往下一级，时值减半。',
+        diagram: 'durations',
       },
     ],
     quiz: {
@@ -356,10 +373,12 @@ export const LESSONS: Lesson[] = [
       {
         heading: '四分休止符',
         body: '长得像一道闪电的那个是四分休止符：安静 1 拍。看到它，手可以抬起准备，但心里要继续数拍。',
+        diagram: 'rests',
       },
       {
         heading: '二分与全休止符',
         body: '二分休止符是坐在第 3 线上的小方块（安静 2 拍）；全休止符是吊在第 4 线下的小方块（安静 4 拍）。记忆法：坐线=2 拍，吊线=4 拍。',
+        diagram: 'rests',
       },
       {
         heading: '休止也要数拍',
@@ -392,6 +411,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '今天的小曲',
         body: '练习曲《三音小曲》的走向：上台阶（C-D-E）→ 下台阶（E-D-C）→ 再变化一次。全是四分音符，专注认音，不用管节奏难度。',
+        diagram: 'positions',
       },
       {
         heading: '边弹边唱音名',
@@ -422,6 +442,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '五指位全开',
         body: '这一课加入 4 指的 F 和 5 指的 G，五个手指全部用上。注意 4 指天生较弱，弹 F 时多给一点耐心。',
+        diagram: 'keyboard',
       },
       {
         heading: '下行比上行难',
@@ -460,6 +481,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '先分句',
         body: '这首歌分两句。第一句：E-D-C-D | E-E-E；第二句前半：D-D-D | E-G-G。把 8 小节的曲子切成 2-3 小节的小段，逐段攻克。',
+        diagram: 'form',
       },
       {
         heading: '指法已经内置',
@@ -484,6 +506,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: 'A 段 + 变化 + A 段',
         body: '《小星星》的结构是"A-B-A"：前两句相同，中间两句变化，最后两句回到开头。学会前两句，整首歌就会了一半。',
+        diagram: 'form',
       },
       {
         heading: '两个音一组',
@@ -516,6 +539,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '附点是什么',
         body: '音符右边加一个小圆点，时值增加一半：附点四分音符 = 1.5 拍。这首歌里"E-E."的长短对比，就是它灵魂所在。',
+        diagram: 'dotted',
       },
       {
         heading: '数拍拆附点',
@@ -544,10 +568,12 @@ export const LESSONS: Lesson[] = [
       {
         heading: '小节：音乐的句子',
         body: '乐谱被竖线（小节线）切成一段段"小节"，就像文章被句号切成句子。每小节的拍数由开头的"拍号"规定。',
+        diagram: 'timesig',
       },
       {
         heading: '4/4 的含义',
         body: '拍号像分数：下面的 4 = 以四分音符为一拍，上面的 4 = 每小节 4 拍。所以 4/4 就是"每小节数 1-2-3-4"。',
+        diagram: 'timesig',
       },
       {
         heading: '强弱规律',
@@ -580,6 +606,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '"1 & 2 &" 数拍法',
         body: '数八分音符时在拍点之间加一个"&"（读"and"）："1 & 2 & 3 & 4 &"。正拍落在数字上，半拍落在 & 上。嘴上数出来，手就稳了。',
+        diagram: 'eighth',
       },
       {
         heading: '均匀是唯一的标准',
@@ -604,6 +631,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '附点 = 延长一半',
         body: '任何音符右边加一个附点，时值就延长自身的一半。附点四分 = 1 + 0.5 = 1.5 拍；附点二分 = 2 + 1 = 3 拍。',
+        diagram: 'dotted',
       },
       {
         heading: '黄金搭档',
@@ -616,6 +644,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '数拍拆解',
         body: '把 1.5 + 0.5 数成"1-&-2"：附点音占满"1 和 &"，八分音落在"2"。把拍拆成半拍来数，附点节奏永远不会错。',
+        diagram: 'dotted',
       },
     ],
     quiz: {
@@ -636,6 +665,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: 'BPM 是什么',
         body: 'BPM = 每分钟拍数。60 BPM 就是一秒一拍；120 BPM 是一秒两拍。曲子上标的 ♩=96，意思就是以 96 BPM 的速度演奏。',
+        diagram: 'metronome',
       },
       {
         heading: '节拍器是你的教练',
@@ -648,6 +678,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '提速阶梯',
         body: '拿《热身 · 五指练习》做实验：先用 60 BPM 弹一遍，然后 70、80、90……找到你开始出错的那一档，就退回上一档继续练。那个速度就是你今天的上限。',
+        diagram: 'metronome',
       },
     ],
     practiceSongId: 'warmup',
@@ -664,6 +695,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '三种节奏型',
         body: '你已经掌握：四分音符（匀速走）、八分音符（小跑步）、附点节奏（长-短推进）。一首真曲子里，它们会混合出现。',
+        diagram: 'durations',
       },
       {
         heading: '看谱先找"难点小节"',
@@ -696,6 +728,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '左手是右手的镜像',
         body: '左手五指位：5 指（小指）放 C3——比中央 C 低一个八度，然后 4 指 D3、3 指 E3、2 指 F3、1 指（拇指）G3。方向和右手正好相反。',
+        diagram: 'bothhands',
       },
       {
         heading: '在低音谱表上',
@@ -761,6 +794,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '最简单的双手形态',
         body: '双手合奏从"齐奏"开始：左右手弹同一个音（相隔八度）、同时起落。它练的是"同步"——双手配合里最基础也最重要的一环。',
+        diagram: 'bothhands',
       },
       {
         heading: '感受八度和声',
@@ -793,6 +827,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: 'C 大三和弦',
         body: 'C 和弦 = C + E + G（1、3、5 指）。它在谱面上是三个叠在一起的音，在键盘上是"隔一个白键按一个"——C 跳过 D 按 E，跳过 F 按 G。',
+        diagram: 'chord',
       },
       {
         heading: '同时下键',
@@ -823,6 +858,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: 'F 和弦与 G 和弦',
         body: 'F 和弦 = F + A + C（在五指位里是 4-2-1 指的"转位"），G 和弦 = G + B + D。加上 C 和弦，三个和弦就能给上千首流行歌伴奏。',
+        diagram: 'chordprog',
       },
       {
         heading: '换和弦的秘诀',
@@ -831,6 +867,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: 'C - F - G - C',
         body: '这个进行叫"终止式"：从家（C）出发，到 F 探个险，到 G 制造紧张，最后回 C 落地。听 G→C 那一下"解决"的感觉——和声的魔力。',
+        diagram: 'chordprog',
       },
       {
         heading: '三个和弦的色彩',
@@ -857,6 +894,7 @@ export const LESSONS: Lesson[] = [
       {
         heading: '分工明确了',
         body: '这首曲子里，右手弹旋律、左手弹低音根音——这才是钢琴的"完全体"：一只手唱歌，一只手打地基。',
+        diagram: 'bothhands',
       },
       {
         heading: '左手先记位置',

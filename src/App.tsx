@@ -36,7 +36,7 @@ import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { FreePlayCanvas } from './components/FreePlayCanvas'
 import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
-import { markLessonComplete, getTutorialProgress } from './storage/tutorialStore'
+import { markLessonComplete, getTutorialProgress, isDevMode, setDevMode } from './storage/tutorialStore'
 import { LessonScreen } from './components/tutorial/LessonScreen'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
@@ -77,6 +77,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('select')
   /** 主页 tab：学习路径 / 曲库 */
   const [homeTab, setHomeTab] = useState<'learn' | 'songs'>('learn')
+  /** 开发者模式：解锁全部课程（持久化到 localStorage） */
+  const [devMode, setDevModeState] = useState(isDevMode)
   const [songId, setSongId] = useState(SONGS[0].id)
   const [mode, setMode] = useState<PracticeMode>('wait')
   const [hud, setHud] = useState<HudSnapshot | null>(null)
@@ -401,6 +403,21 @@ export default function App() {
               </button>
               {' · '}
               ⚙️ 设置
+            </button>
+            <button
+              onClick={() => {
+                const next = !devMode
+                setDevMode(next)
+                setDevModeState(next)
+              }}
+              title={devMode ? '开发者模式已开启：全部课程已解锁' : '开启开发者模式（解锁全部课程）'}
+              className={`grid h-7 w-7 place-items-center rounded-full text-sm transition-all ${
+                devMode
+                  ? 'bg-[#FF9600]/15 ring-1 ring-[#FF9600]/50'
+                  : 'opacity-40 hover:opacity-80'
+              }`}
+            >
+              🛠
             </button>
           </div>
 

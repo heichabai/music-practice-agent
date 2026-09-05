@@ -12,7 +12,8 @@ interface Props {
   onClose: () => void
 }
 
-const STRIP_H = 150
+const STRIP_H_SINGLE = 150
+const STRIP_H_GRAND = 205 // 大谱表两行谱，需要更高
 
 export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const innerRef = useRef<HTMLDivElement | null>(null)
@@ -23,6 +24,12 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   const translateRef = useRef(0)
   const sizedRef = useRef(false)
   const pxRef = useRef<number[]>([])
+  const grandRef = useRef(false)
+  /** 是否大谱表：驱动乐谱条高度（state 保证重渲染） */
+  const [grand, setGrand] = useState(false)
+  // 当前拍高亮集合（大谱表时左右手同时高亮）
+  const lastBeatRef = useRef(-1)
+  const lastSetRef = useRef<Set<number>>(new Set())
 
   const sizeSvg = () => {
     const host = hostRef.current
@@ -47,10 +54,11 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     const vbH = bb.height + margin * 2
     svg.setAttribute('viewBox', `${bb.x - margin} ${bb.y - margin} ${vbW} ${vbH}`)
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-    const scale = STRIP_H / vbH
+    const stripH = grandRef.current ? STRIP_H_GRAND : STRIP_H_SINGLE
+    const scale = stripH / vbH
     svg.style.maxWidth = 'none'
     svg.style.width = `${vbW * scale}px`
-    svg.style.height = `${STRIP_H}px`
+    svg.style.height = `${stripH}px`
     svg.style.display = 'block'
     // 窄于横条的谱面水平居中，宽谱保持左对齐由滚动接管
     const container = hostRef.current?.parentElement?.parentElement
@@ -65,8 +73,10 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    const { abc, noteBeats } = songToAbc(song)
+    const { abc, noteBeats, grand } = songToAbc(song)
     noteBeatsRef.current = noteBeats
+    grandRef.current = grand
+    setGrand(grand)
 
     const renderWith = (width: number) => {
       host.innerHTML = ''
@@ -82,7 +92,9 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     let width = Math.min(1400, Math.max(500, song.notes.length * 90))
     renderWith(width)
     let tries = 0
-    while (host.querySelectorAll('.abcjs-staff').length > 1 && tries < 4) {
+    // 防换行重渲染：大谱表一行含 2 个谱表属正常，超过才算换行
+    const staffPerSystem = grand ? 2 : 1
+    while (host.querySelectorAll('.abcjs-staff').length > staffPerSystem && tries < 4) {
       width = Math.ceil(width * 1.8)
       renderWith(width)
       tries++
@@ -92,6 +104,8 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     translateRef.current = 0
     sizedRef.current = false
     pxRef.current = []
+    lastBeatRef.current = -1
+    lastSetRef.current = new Set()
     sizeSvg()
 
     // 字体加载会改变字形布局：字体就绪后重渲染并重测量（异步竞态的真正源头）
@@ -120,7 +134,6 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
 
   useEffect(() => {
     let raf = 0
-    let lastIdx = -1
     const tick = () => {
       const engine = engineRef.current
       if (engine) {
@@ -138,31 +151,54 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
           }
         }
 
-        let idx = -1
+        const t = engine.songTime
+
+        // 当前拍 = 不超过 songTime 的最大起始拍；该拍的所有音符同时高亮（双手谱左右手同步）
+        let cur = -1
         for (let i = 0; i < beats.length; i++) {
-          if (beats[i] <= engine.songTime + 0.05) idx = i
-          else break
+          if (beats[i] <= t + 0.05 && beats[i] > cur) cur = beats[i]
         }
-        if (idx !== lastIdx) {
-          if (lastIdx >= 0 && elems[lastIdx]) elems[lastIdx].classList.remove('score-current')
-          if (idx >= 0 && elems[idx]) elems[idx].classList.add('score-current')
-          lastIdx = idx
+        if (cur !== lastBeatRef.current) {
+          for (const j of lastSetRef.current) elems[j]?.classList.remove('score-current')
+          const next = new Set<number>()
+          if (cur >= 0) {
+            for (let i = 0; i < beats.length; i++) {
+              if (Math.abs(beats[i] - cur) < 0.001) next.add(i)
+            }
+          }
+          for (const j of next) elems[j]?.classList.add('score-current')
+          lastSetRef.current = next
+          lastBeatRef.current = cur
         }
 
-        // 连续插值滚动：在相邻音符位置之间按 songTime 线性滑行，等待时静止，杜绝跳变
+        // 连续插值滚动：拍点升序去重，在相邻拍点位置之间按 songTime 线性滑行
         const pxs = pxRef.current
         const inner = innerRef.current
         if (pxs.length === beats.length && beats.length > 0 && inner !== null) {
-          const t = engine.songTime
+          // 拍点 → 该拍所有音符的最小 px（同拍左右手取最左者）
+          const uniq: number[] = []
+          const pxFor: number[] = []
+          for (let i = 0; i < beats.length; i++) {
+            const b = beats[i]
+            const k = uniq.indexOf(b)
+            if (k === -1) {
+              uniq.push(b)
+              pxFor.push(pxs[i])
+            } else if (pxs[i] < pxFor[k]) {
+              pxFor[k] = pxs[i]
+            }
+          }
+          // uniq 已是插入序≈升序（同拍去重），保险排序
+          const order = uniq.map((_, i) => i).sort((a, b) => uniq[a] - uniq[b])
+          const su = order.map(i => uniq[i])
+          const sp = order.map(i => pxFor[i])
+
           let k = 0
-          while (k + 1 < beats.length && beats[k + 1] <= t) k++
-          let x = pxs[k] ?? 0
-          if (k + 1 < beats.length && beats[k + 1] > beats[k]) {
-            const ratio = Math.min(
-              1,
-              Math.max(0, (t - beats[k]) / (beats[k + 1] - beats[k])),
-            )
-            x = (pxs[k] ?? 0) + ((pxs[k + 1] ?? 0) - (pxs[k] ?? 0)) * ratio
+          while (k + 1 < su.length && su[k + 1] <= t) k++
+          let x = sp[k] ?? 0
+          if (k + 1 < su.length && su[k + 1] > su[k]) {
+            const ratio = Math.min(1, Math.max(0, (t - su[k]) / (su[k + 1] - su[k])))
+            x = (sp[k] ?? 0) + ((sp[k + 1] ?? 0) - (sp[k] ?? 0)) * ratio
           }
           const outer = inner.parentElement
           if (outer !== null) {
@@ -179,7 +215,9 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
     return () => {
       cancelAnimationFrame(raf)
       const elems = elemsRef.current
-      if (lastIdx >= 0 && elems[lastIdx]) elems[lastIdx].classList.remove('score-current')
+      for (const j of lastSetRef.current) elems[j]?.classList.remove('score-current')
+      lastSetRef.current = new Set()
+      lastBeatRef.current = -1
     }
   }, [engineRef])
 
@@ -212,7 +250,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       >
         ×
       </button>
-      <div className="overflow-hidden" style={{ height: STRIP_H }}>
+      <div className="overflow-hidden" style={{ height: grand ? STRIP_H_GRAND : STRIP_H_SINGLE }}>
         <div
           ref={innerRef}
           className="h-full will-change-transform"
