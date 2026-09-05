@@ -238,7 +238,8 @@ body::after {
   stroke: #f59e0b !important;
 }
 .score-strip svg .abcjs-bar path {
-  stroke: #c4c4c4 !important;
+  stroke: #000000 !important;
+  fill: #000000 !important;
 }
 .score-strip svg .abcjs-staff path {
   stroke: #1a1a1a !important;
