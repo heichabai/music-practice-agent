@@ -69,9 +69,17 @@ export function musicxmlToSong(xml, fallbackName) {
 
   if (voices.size === 0) throw new Error('MusicXML 中没有可用的音符')
 
-  // 全声部合并：谱面上有什么音符就输出什么（双手谱两个声部都保留）
+  // 每行谱表只保留主声部（voice 编号最小的层，MusicXML 惯例：1/5 为每行谱表的主层）。
+  // 钢琴谱每行谱表常有 2 个独立声部层（主旋律层 + 内声部层，各自有休止符），
+  // 全部合并会让两条独立节奏线叠进同一行谱：符头互相穿插、休止符压在音符上，无法记谱。
+  const byStaff = new Map()
+  for (const [key, group] of voices) {
+    const [staff, voice] = String(key).split(':').map(Number)
+    const cur = byStaff.get(staff)
+    if (cur === undefined || (voice ?? 99) < (cur.voice ?? 99)) byStaff.set(staff, { voice, group })
+  }
   const all = []
-  for (const group of voices.values()) {
+  for (const { group } of byStaff.values()) {
     all.push(...group.notes)
   }
 
