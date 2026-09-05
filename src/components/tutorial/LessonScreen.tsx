@@ -200,7 +200,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
       {/* 互动任务 */}
       {lesson.task !== undefined && (
         <div className="mt-4">
-          <TaskKeyboard task={lesson.task} onSatisfied={() => setTaskDone(true)} />
+          <TaskKeyboard key={lesson.id} task={lesson.task} onSatisfied={() => setTaskDone(true)} />
         </div>
       )}
 

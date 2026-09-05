@@ -41,8 +41,12 @@ import { LessonScreen } from './components/tutorial/LessonScreen'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
 
-// 电脑键盘 → midi（白键 A S D F G H J K，黑键 W E T Y U）
+// 电脑键盘 → midi
+// 高八度（A 行）：白键 A S D F G H J K L ; '，黑键 W E T Y U O
+// 低八度（Z 行）：白键 Z X C V B N M（C3-B3，左手练习用）
 const KEYBOARD_MAP: Record<string, number> = {
+  KeyZ: 48, KeyX: 50, KeyC: 52, KeyV: 53, KeyB: 55,
+  KeyN: 57, KeyM: 59,
   KeyA: 60, KeyW: 61, KeyS: 62, KeyE: 63, KeyD: 64,
   KeyF: 65, KeyT: 66, KeyG: 67, KeyY: 68, KeyH: 69,
   KeyU: 70, KeyJ: 71, KeyK: 72, KeyO: 73, KeyL: 74,
@@ -71,6 +75,8 @@ const MODE_INFO: Record<PracticeMode, { label: string; desc: string }> = {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('select')
+  /** 主页 tab：学习路径 / 曲库 */
+  const [homeTab, setHomeTab] = useState<'learn' | 'songs'>('learn')
   const [songId, setSongId] = useState(SONGS[0].id)
   const [mode, setMode] = useState<PracticeMode>('wait')
   const [hud, setHud] = useState<HudSnapshot | null>(null)
@@ -399,93 +405,137 @@ export default function App() {
           </div>
 
           {/* ===== 继续练习大卡（多邻国式） ===== */}
-          <button
-            onClick={() => {
-              const t = getTutorialProgress().completed.length
-              if (t < LESSONS.length) {
-                setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
-                setScreen('lesson')
-              } else {
-                void startSong(lastPlayed.id ?? SONGS[0].id, mode)
-              }
-            }}
-            className="mt-4 w-full"
-          >
-            <DuoButton variant="green" className="w-full py-4 text-lg">
-              {getTutorialProgress().completed.length < LESSONS.length
-                ? `继续第 ${getTutorialProgress().completed.length + 1} 课`
-                : `继续练习 · ${lastPlayed.name ?? SONGS[0].name}`}
-            </DuoButton>
-          </button>
-
-          {/* ===== 学习路径（多邻国之字形） ===== */}
-          {getTutorialProgress().completed.length < LESSONS.length && (
-            <section className="mt-8">
-              <div className="mb-4 rounded-2xl bg-[#1CB0F6] px-4 py-3 text-center shadow-[0_3px_0_#1899D6]">
-                <p className="text-sm font-black uppercase tracking-wide text-white">
-                  UNIT 1 · 零基础入门
-                </p>
-              </div>
-              <LearningPath
-                lessons={LESSONS}
-                onOpenLesson={lesson => {
-                  setActiveLesson(lesson)
-                  setScreen('lesson')
+          {homeTab === 'learn' && (
+            <>
+              <button
+                onClick={() => {
+                  const t = getTutorialProgress().completed.length
+                  if (t < LESSONS.length) {
+                    setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
+                    setScreen('lesson')
+                  } else {
+                    void startSong(lastPlayed.id ?? SONGS[0].id, mode)
+                  }
                 }}
-              />
-            </section>
+                className="mt-4 w-full"
+              >
+                <DuoButton variant="green" className="w-full py-4 text-lg">
+                  {getTutorialProgress().completed.length < LESSONS.length
+                    ? `继续第 ${getTutorialProgress().completed.length + 1} 课`
+                    : `继续练习 · ${lastPlayed.name ?? SONGS[0].name}`}
+                </DuoButton>
+              </button>
+
+              {/* ===== 学习路径（多邻国之字形，按 Unit 分段） ===== */}
+              {getTutorialProgress().completed.length < LESSONS.length ? (
+                <section className="mt-8">
+                  <LearningPath
+                    lessons={LESSONS}
+                    onOpenLesson={lesson => {
+                      setActiveLesson(lesson)
+                      setScreen('lesson')
+                    }}
+                  />
+                </section>
+              ) : (
+                <div className="mt-8 rounded-2xl border-2 border-[#FFC800]/40 bg-[#FFC800]/10 px-6 py-8 text-center">
+                  <p className="text-3xl">🎓</p>
+                  <p className="mt-2 text-lg font-black text-gray-800">全部课程已完成！</p>
+                  <p className="mt-1 text-sm text-gray-500">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
+                </div>
+              )}
+            </>
           )}
 
-          {/* ===== 曲目 ===== */}
-          <section className="mt-8">
-            <div className="mb-4 rounded-2xl bg-[#CE82FF] px-4 py-3 text-center shadow-[0_3px_0_#A568CC]">
-              <p className="text-sm font-black uppercase tracking-wide text-white">
-                🎵 曲目
+          {homeTab === 'songs' && (
+            <>
+              {/* ===== 曲目 ===== */}
+              <section className="mt-4">
+                <SongSection
+                  songs={allSongs.map(s => ({ ...s, source: (s as CustomSong).source }))}
+                  onPlay={s => void startSong(s.id, mode)}
+                  onDelete={id => {
+                    deleteCustomSong(id)
+                    setCustomSongs(listCustomSongs())
+                  }}
+                />
+              </section>
+
+              {/* ===== 功能按钮 ===== */}
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <DuoButton
+                  variant="purple"
+                  className="py-3 text-sm"
+                  onClick={() => {
+                    setFreePlayNoteCount(0)
+                    setFreePlayCurrentNote('')
+                    void Tone.start()
+                    preloadPiano()
+                    setScreen('freeplay')
+                  }}
+                >
+                  🎹 自由弹奏
+                </DuoButton>
+                <DuoButton
+                  variant="blue"
+                  className="py-3 text-sm"
+                  onClick={() => setScreen('import')}
+                >
+                  📥 导入乐谱
+                </DuoButton>
+              </div>
+
+              {/* MIDI 状态 */}
+              <p className="mt-4 text-center text-xs text-gray-500">
+                {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
+                {' · '}
+                <button onClick={() => void toggleMic()} className="text-[#1CB0F6] hover:underline">
+                  {micEnabled ? '麦克风已开' : '开麦克风'}
+                </button>
               </p>
-            </div>
-            <SongSection
-              songs={allSongs.map(s => ({ ...s, source: (s as CustomSong).source }))}
-              onPlay={s => void startSong(s.id, mode)}
-              onDelete={id => {
-                deleteCustomSong(id)
-                setCustomSongs(listCustomSongs())
-              }}
-            />
-          </section>
-
-          {/* ===== 底部功能按钮 ===== */}
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            <DuoButton
-              variant="purple"
-              className="py-3 text-sm"
-              onClick={() => {
-                setFreePlayNoteCount(0)
-                setFreePlayCurrentNote('')
-                void Tone.start()
-                preloadPiano()
-                setScreen('freeplay')
-              }}
-            >
-              🎹 自由弹奏
-            </DuoButton>
-            <DuoButton
-              variant="blue"
-              className="py-3 text-sm"
-              onClick={() => setScreen('import')}
-            >
-              📥 导入乐谱
-            </DuoButton>
-          </div>
-
-          {/* MIDI 状态 */}
-          <p className="mt-4 text-center text-xs text-gray-500">
-            {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
-            {' · '}
-            <button onClick={() => void toggleMic()} className="text-[#1CB0F6] hover:underline">
-              {micEnabled ? '麦克风已开' : '开麦克风'}
-            </button>
-          </p>
+            </>
+          )}
         </div>
+      )}
+
+      {/* ===== 底部 Tab 导航（多邻国式）：必须放在 screen-enter 容器外，
+          否则容器动画结束时的 transform 会把 fixed 钉在容器底部而非视口底部 ===== */}
+      {screen === 'select' && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-gray-200 bg-white/95 backdrop-blur-md">
+          <div className="mx-auto flex max-w-lg">
+            {(
+              [
+                { key: 'learn', icon: '🏠', label: '学习', color: '#1CB0F6' },
+                { key: 'songs', icon: '🎵', label: '曲库', color: '#CE82FF' },
+              ] as const
+            ).map(tab => {
+              const active = homeTab === tab.key
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setHomeTab(tab.key)}
+                  className="flex flex-1 flex-col items-center gap-0.5 py-2.5 transition-colors"
+                  style={{
+                    borderTop: active ? `3px solid ${tab.color}` : '3px solid transparent',
+                    marginTop: '-2px',
+                  }}
+                >
+                  <span
+                    className={`text-xl transition-transform ${active ? 'scale-110' : 'opacity-50 grayscale'}`}
+                  >
+                    {tab.icon}
+                  </span>
+                  <span
+                    className="text-[11px] font-black"
+                    style={{ color: active ? tab.color : '#9ca3af' }}
+                  >
+                    {tab.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
       )}
 
       {screen === 'play' && (

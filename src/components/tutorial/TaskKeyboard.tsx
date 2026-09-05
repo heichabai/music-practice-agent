@@ -20,6 +20,8 @@ export function TaskKeyboard({ task, onSatisfied }: Props) {
   const [seqPos, setSeqPos] = useState(0)
   const [flash, setFlash] = useState<'none' | 'ok' | 'miss'>('none')
   const satisfiedRef = useRef(false)
+  // 事件监听闭包里拿不到最新 state，用 ref 跟踪 sequence 进度
+  const seqPosRef = useRef(0)
 
   useEffect(() => {
     const onNote = (e: Event) => {
@@ -65,22 +67,23 @@ export function TaskKeyboard({ task, onSatisfied }: Props) {
       return
     }
     // sequence
-    const expected = task.targets[seqPos]
+    const pos = seqPosRef.current
+    const expected = task.targets[pos]
     if (midi === expected) {
       markFlash('ok')
-      const nextPos = seqPos + 1
+      const nextPos = pos + 1
+      seqPosRef.current = nextPos
       setSeqPos(nextPos)
       if (nextPos >= task.targets.length) {
         setDone(true)
         satisfiedRef.current = true
         onSatisfied()
       }
-    } else if (task.targets.includes(midi, seqPos + 1) === false && midi !== expected) {
+    } else if (task.targets.includes(midi, pos + 1) === false) {
       // 弹错且不在余下序列里 → 重来
-      if (midi !== task.targets[seqPos]) {
-        markFlash('miss')
-        setSeqPos(0)
-      }
+      markFlash('miss')
+      seqPosRef.current = 0
+      setSeqPos(0)
     }
   }
 

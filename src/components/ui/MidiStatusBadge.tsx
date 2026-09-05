@@ -24,7 +24,7 @@ export function MidiStatusBadge({ status, deviceName }: Props) {
       {status === 'ok' && <span className="text-primary">MIDI 已连接 · {deviceName}</span>}
       {status === 'no-device' && (
         <span className="text-secondary">
-          未检测到 MIDI 设备，可用电脑键盘弹奏（A S D F G H J K 白键 · W E T Y U 黑键）
+          未检测到 MIDI 设备，可用电脑键盘弹奏（Z X C V B N M 低八度 · A S D F G H J K 白键 · W E T Y U 黑键）
         </span>
       )}
       {status === 'unsupported' && (
