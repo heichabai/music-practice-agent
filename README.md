@@ -6,18 +6,20 @@
 
 ### 教学（零基础入门课程）
 
-- **7 课互动教程**：认识键盘 → 五线谱 → 右手五指 → 节奏 → 双手 → 技法 → 实战曲目
-- 每课包含知识卡片（配教学插图）、页内按键任务（实时验证）、课后练习曲（自动衔接练习模式）
-- 小结测验 + AI 答疑（结合本课上下文回答学员问题）
-- 进度持久化（完成/继续学习徽章、x/7 计数）
+- **26 课五单元互动课程**：认识钢琴 → 学读谱 → 右手旋律 → 节奏进阶 → 左手与双手
+- **学习路径即乐谱**：课程化作五线谱上逐级爬升的音符，已完成的课连成一条金色旋律
+- 每课 = 步骤知识卡（配教学插图）+ 页内按键任务（实时验证）+ 小结测验 + 课后练习曲
+- 课程页左右分栏：左侧教学内容，右侧常驻练习面板（任务/测验/下一课/AI 答疑）
+- 进度持久化（x/26 计数、继续学习横幅、开发者模式可解锁全部课程）
 
-### 练习（双模式 + 沉浸视觉）
+### 练习（双模式 + 全屏沉浸演奏）
 
 - **等待式**：弹对才前进，适合认音入门
 - **自由式**：连续播放，考察真实节奏与时值
 - 实时判定：音高对错、漏弹、错音、多余按键、时值保持、节奏偏差
-- 拟真琴键（渐变/按压下沉/内阴影）、命中粒子特效 + 闪光环
-- 悬浮五线谱条（abcjs 生成、当前音琥珀高亮、连续滚动跟随、可切原谱图）
+- 全屏演奏页：顶部细 HUD、瀑布流占满全屏、拟真琴键贴底（按压下沉/内阴影/目标键呼吸光）
+- 谱纸五线谱抽屉（abcjs 生成、时值比例间距、逐拍跨声部对齐、当前音金色高亮、跟随滚动、可切原谱图）
+- 命中粒子特效 + 金色闪光环 + 舞台聚光晕影
 
 ### 测评（会话报告 + AI 复盘）
 
@@ -26,15 +28,14 @@
 - 跨次记忆：基于历史趋势给出针对性建议
 - 练习记录持久化 + 跨次错误模式统计
 
-### 乐谱导入（三通道融合）
+### 乐谱导入（本地 OMR + MIDI）
 
 | 通道 | 引擎 | 适用场景 |
 |---|---|---|
 | 本地精确识别 | Audiveris OMR（离线） | 印刷五线谱 PDF/图片，准确率高 |
-| AI 视觉识谱 | 通义 qwen3.8（思考模式） | 照片、非标准排版兜底 |
 | MIDI 直传 | @tonejs/midi（纯前端） | 100% 精确，多轨道自动取主旋律 |
 
-**融合流水线**：OMR 精确识别 → 结果质量把关（音符过少/音高单一=垃圾）→ Real-ESRGAN AI 超分辨率增强 → OMR 重试 → 仍不行自动降级 AI 视觉通道
+**识别流水线**：图片预处理（小图 Real-ESRGAN 超分；超 2000 万像素大图等比缩小至引擎上限内）→ OMR 识别 → 结果质量把关（音符过少/音高单一=可疑）→ 超分后自动重试
 
 识别结果进入钢琴卷帘校对编辑器（增删音/拖拽调音/时值调整/试听），校对后存入曲库。
 
@@ -44,13 +45,15 @@
 - 内置全部引擎（Audiveris+JRE / Real-ESRGAN / 钢琴采样），双击即用无需终端
 - 自定义应用图标，密钥存本地配置文件
 
-### 体验细节
+### 体验细节（深色演奏厅设计系统）
 
+- 近黑舞台底色 + 琥珀金聚光灯 + 顶部光晕/暗角/噪点质感
+- 左侧栏导航（学习/曲库/自由弹奏/导入 + 连续打卡/XP/每日目标）
+- 演奏/课程/自由弹奏页全屏沉浸，零像素浪费
 - Salamander 真钢琴采样音色（自托管 wav，低延迟）
-- 淡雅粉彩音符色系 + 极光底纹 + 噪点质感 + 玻璃卡 + 渐变主视觉（V2 设计系统）
 - Inter 字体（拉丁/数字）+ 苹方（中文）
-- `prefers-reduced-motion` 降级、移动端适配、键盘焦点环、全局 ErrorBoundary
-- 双输入：Web MIDI 真键盘（热插拔检测）+ 电脑键盘兜底
+- `prefers-reduced-motion` 降级、键盘焦点环、全局 ErrorBoundary
+- 双输入：Web MIDI 真键盘（热插拔检测）+ 电脑键盘兜底（Z/A 双八度）
 
 ## 快速开始
 
@@ -61,12 +64,11 @@ git clone git@github.com:heichabai/music-practice-agent.git
 cd music-practice-agent
 npm install
 
-# 可选：启用 AI 教练与 AI 识谱（不配置则练习功能不受影响）
+# 可选：启用 AI 教练（不配置则练习功能不受影响）
 cp .env.example .env
-# 编辑 .env，填入 DEEPSEEK_API_KEY（AI 教练）等密钥
+# 编辑 .env，填入 DEEPSEEK_API_KEY（AI 教练）
 
-npm run omr   # 终端 1：本地 OMR 识谱服务（需 ~/bin/Audiveris.app）
-npm run dev   # 终端 2：前端开发服务器
+npm run dev   # 前端开发服务器（OMR 识谱服务随首次识别自动启动）
 ```
 
 打开 http://localhost:5173
@@ -87,7 +89,7 @@ npm run desktop:build   # 打包 .dmg（自动收集引擎资源）
 
 ## 技术栈
 
-React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Tone.js · Web MIDI API · abcjs · Electron · DeepSeek · 通义千问 · Audiveris · Real-ESRGAN
+React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Tone.js · Web MIDI API · abcjs · Electron · DeepSeek · Audiveris · Real-ESRGAN
 
 ## 架构
 
@@ -104,7 +106,7 @@ React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Tone.js · Web MIDI API ·
    ↓
 AI 层      coach.ts / tutorChat.ts —— 复盘 + 练习计划 + 课程答疑
    ↓
-识谱管线   omr-server → OMR → 质量把关 → 超分重试 → AI 兜底
+识谱管线   omr-server → 预处理（超分/缩图）→ OMR → 质量把关 → 超分重试
    ↓
 校对编辑   PianoRollEditor.tsx —— 卷帘式增删改音 / 试听
    ↓
@@ -127,22 +129,24 @@ src/
 │   └── pdfPages.ts              # PDF 渲染（pdfjs 按需加载）
 ├── audio/piano.ts               # Salamander 钢琴采样（懒加载单例）
 ├── components/
-│   ├── tutorial/                # 教程系统
-│   │   ├── TutorialScreen.tsx   # 课程列表
-│   │   ├── LessonScreen.tsx     # 课程详情（步骤/任务/测验/答疑）
-│   │   ├── TaskKeyboard.tsx     # 页内互动按键验证
-│   │   └── Diagrams.tsx         # 教学示意图（SVG + AI 插画）
+│   ├── tutorial/                # 课程系统
+│   │   ├── LessonScreen.tsx     # 课程详情（左教学栏 + 右 sticky 练习面板）
+│   │   ├── TaskKeyboard.tsx     # 页内互动按键验证（宽度自适应）
+│   │   └── Diagrams.tsx         # 教学示意图（SVG 线性风格）
 │   ├── ui/                      # 通用 UI 组件
-│   ├── ScorePanel.tsx           # 悬浮五线谱条（abcjs + 光标跟随）
+│   ├── Sidebar.tsx              # 左侧栏导航 + 游戏化状态
+│   ├── LearningPath.tsx         # 五线谱学习路径（课程=音符，完成连成旋律）
+│   ├── ScorePanel.tsx           # 谱纸五线谱抽屉（abcjs + 逐拍对齐 + 光标跟随）
 │   ├── PianoRollEditor.tsx      # 钢琴卷帘校对编辑器
-│   ├── ImportScreen.tsx         # 三通道乐谱导入
-│   ├── FallingNotes.tsx         # 下落音符画布 + 粒子特效
-│   ├── PianoKeyboard.tsx        # 拟真琴键可视化
+│   ├── ImportScreen.tsx         # 乐谱导入（本地 OMR / MIDI）
+│   ├── FallingNotes.tsx         # 下落音符画布 + 粒子特效（动态高度）
+│   ├── FreePlayCanvas.tsx       # 自由弹奏画布（音块上升 + 粒子）
+│   ├── PianoKeyboard.tsx        # 拟真琴键可视化（高度随视口缩放）
 │   └── ReportScreen.tsx         # 报告页（含 AI 教练面板）
 ├── game/                        # 判定引擎（纯逻辑）
 │   ├── engine.ts                # 双模式判定 + 节奏/时值
 │   ├── report.ts                # 会话报告生成
-│   ├── lessons.ts               # 7 课教程数据
+│   ├── lessons.ts               # 26 课五单元课程数据
 │   ├── abcNotation.ts           # Song → ABC 五线谱转换
 │   ├── keyboard.ts              # 键位几何布局
 │   ├── songs.ts                 # 内置曲库
@@ -179,14 +183,14 @@ docs/ui-design.md                # UI 设计规范
 
 ## 已实现
 
-- [x] 零基础 7 课互动教程 + AI 答疑
-- [x] 双模式练习 + 拟真琴键 + 悬浮五线谱条
-- [x] 三通道乐谱导入（OMR / AI / MIDI）+ 融合流水线
+- [x] 零基础 26 课五单元互动课程 + 五线谱学习路径 + AI 答疑
+- [x] 双模式练习 + 全屏沉浸演奏页 + 谱纸五线谱抽屉
+- [x] 本地 OMR + MIDI 双通道乐谱导入（超分/缩图预处理 + 质量把关）
 - [x] 钢琴卷帘校对编辑器
 - [x] AI 教练复盘 + 练习计划 + 跨次记忆
 - [x] Salamander 真钢琴采样 + 低延迟优化
 - [x] macOS 桌面应用（Electron + 内置引擎）
-- [x] V2 设计系统（Inter/极光/噪点/玻璃/渐变）
+- [x] 深色演奏厅设计系统（近黑舞台/琥珀金/左侧栏/全屏布局）
 
 ## 路线图
 
