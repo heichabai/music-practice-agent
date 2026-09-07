@@ -171,7 +171,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
     lesson.practiceSong ?? SONGS.find(s => s.id === lesson.practiceSongId) ?? null
 
   return (
-    <div className="screen-enter w-full max-w-2xl pb-16">
+    <div className="w-full">
       <div className="flex items-center gap-4">
         <GhostButton onClick={onBack} className="px-3 py-1 text-xs">
           ‹ 课程
@@ -206,7 +206,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
         <h2 className="mt-3 text-h3 font-semibold text-primary">{step.heading}</h2>
         <p className="mt-3 text-body leading-relaxed text-secondary">{step.body}</p>
         {step.diagram !== undefined && (
-          <div className="mt-5 rounded-lg bg-base/50 px-4 py-4">
+          <div className="diagram-card mt-5 px-4 py-4">
             <Diagram kind={step.diagram} />
           </div>
         )}

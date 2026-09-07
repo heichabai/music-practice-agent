@@ -7,9 +7,9 @@ interface Props {
 }
 
 
-const CARD_COLORS = ['#1CB0F6', '#CE82FF', '#58CC02', '#FF9600', '#FF4B4B', '#00CD9C']
+const CARD_COLORS = ['#38bdf8', '#a882ff', '#4ade80', '#f2b234', '#f87171', '#2dd4bf']
 
-/** 多邻国风格曲目卡片：彩色左边框 + 大标题 + BPM */
+/** 深色曲目卡片：彩色光条 + 标题 + BPM，全宽网格排布 */
 export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: string }; onPlay: (s: Song) => void; onDelete?: (id: string) => void }) {
   const idx = Math.abs(song.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % CARD_COLORS.length
   const color = CARD_COLORS[idx]
@@ -18,29 +18,33 @@ export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: s
     <div className="group relative">
       <button
         onClick={() => onPlay(song)}
-        className="flex w-full items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white p-4 text-left transition-all duration-150 hover:border-current active:translate-y-[2px]"
-        style={{ borderLeftColor: color }}
+        className="flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-raised/70 p-4 text-left transition-all duration-150 hover:border-border-strong hover:bg-raised hover:shadow-[0_6px_24px_rgb(0_0_0/0.4)] active:translate-y-[1px]"
       >
         <span
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-xl font-black text-gray-900"
-          style={{ background: color, boxShadow: `0 3px 0 ${color}80` }}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-lg"
+          style={{ background: `${color}22`, color, boxShadow: `inset 0 0 0 1px ${color}55` }}
         >
           {song.source === 'omr' ? '🎼' : song.source === 'image' ? '🤖' : song.source === 'midi' ? '🎹' : '🎵'}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-bold text-gray-900">{song.name}</span>
-          <span className="text-xs font-medium text-gray-400">
+          <span className="block truncate font-bold text-primary">{song.name}</span>
+          <span className="text-xs font-medium text-muted">
             {song.bpm} BPM · {song.notes.length} 音
           </span>
         </span>
-        <svg viewBox="0 0 24 24" className="h-5 w-5 text-gray-500 transition-transform group-hover:scale-125" fill="currentColor">
-          <path d="M8 5.14v14l11-7-11-7z" />
-        </svg>
+        <span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all group-hover:scale-110"
+          style={{ background: `${color}1e`, color }}
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+            <path d="M8 5.14v14l11-7-11-7z" />
+          </svg>
+        </span>
       </button>
       {onDelete !== undefined && (
         <button
           onClick={() => onDelete(song.id)}
-          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-[#FF4B4B] text-xs text-gray-900 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-wrong text-xs font-bold text-[#10131c] opacity-0 transition-opacity group-hover:opacity-100"
         >
           ×
         </button>
@@ -54,20 +58,25 @@ export function SongSection({ songs, onPlay, onDelete }: Props) {
   const custom = songs.filter(s => s.source !== undefined)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-8">
       {custom.length > 0 && (
-        <>
-          <p className="text-xs font-black uppercase tracking-wider text-[#CE82FF]">我的曲目</p>
-          {custom.map(s => (
-            <SongCard key={s.id} song={s} onPlay={onPlay} onDelete={onDelete} />
-          ))}
-          <div className="h-2" />
-        </>
+        <section>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-accent-strong">我的曲目</p>
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            {custom.map(s => (
+              <SongCard key={s.id} song={s} onPlay={onPlay} onDelete={onDelete} />
+            ))}
+          </div>
+        </section>
       )}
-      <p className="text-xs font-black uppercase tracking-wider text-[#1CB0F6]">曲目</p>
-      {builtIn.map(s => (
-        <SongCard key={s.id} song={s} onPlay={onPlay} />
-      ))}
+      <section>
+        <p className="mb-3 text-xs font-bold uppercase tracking-wider text-info">内置曲目</p>
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          {builtIn.map(s => (
+            <SongCard key={s.id} song={s} onPlay={onPlay} />
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

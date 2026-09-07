@@ -33,7 +33,7 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
         <path
           d="M 40 0 C 40 60, 10 80, 10 140 C 10 200, 70 220, 70 300 C 70 380, 10 400, 10 480 C 10 560, 70 580, 70 660 C 70 740, 10 760, 10 840 C 10 920, 40 940, 40 1000"
           fill="none"
-          stroke="#d4d4dc"
+          stroke="#2c3449"
           strokeWidth="4"
           strokeDasharray="8 8"
           strokeLinecap="round"
@@ -80,11 +80,11 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
                     isCurrent ? 'animate-pulse' : ''
                   }`}
                   style={{
-                    background: isDone ? '#FFC800' : isLocked ? '#d4d4dc' : color,
+                    background: isDone ? '#f2b234' : isLocked ? '#2a3145' : color,
                     boxShadow: isDone
-                      ? '0 4px 0 #E6B400'
+                      ? '0 4px 0 #a87b0e, 0 0 20px rgb(242 178 52 / 0.35)'
                       : isCurrent
-                        ? `0 4px 0 ${unit.shadow}, 0 0 24px ${color}55`
+                        ? `0 4px 0 ${unit.shadow}, 0 0 32px ${color}66`
                         : `0 4px 0 ${unit.shadow}80`,
                   }}
                 >
@@ -93,7 +93,7 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   ) : isLocked ? (
-                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 text-muted" fill="none" stroke="currentColor" strokeWidth={2}>
                       <rect x="5" y="11" width="14" height="9" rx="2" />
                       <path d="M8 11V7a4 4 0 018 0v4" />
                     </svg>
@@ -108,17 +108,17 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
                 <span
                   className={`mt-2 rounded-full px-3 py-1 text-[11px] font-bold ${
                     isDone
-                      ? 'bg-[#FFC800]/15 text-[#B08900]'
+                      ? 'bg-accent/15 text-accent-strong'
                       : isCurrent
                         ? ''
-                        : 'text-gray-400'
+                        : 'text-muted'
                   }`}
-                  style={isCurrent ? { background: `${color}22`, color: unit.shadow } : undefined}
+                  style={isCurrent ? { background: `${color}26`, color } : undefined}
                 >
                   {lesson.title}
                 </span>
                 {dev && (
-                  <span className="mt-0.5 font-mono text-[10px] text-gray-400">{lesson.id}</span>
+                  <span className="mt-0.5 font-mono text-[10px] text-muted">{lesson.id}</span>
                 )}
               </button>
             </div>

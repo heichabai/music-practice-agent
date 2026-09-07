@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="mt-3 break-words text-sm text-wrong">{this.state.error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-6 rounded-full bg-accent px-5 py-2 text-sm font-medium text-base hover:bg-accent-strong"
+              className="mt-6 rounded-full bg-accent px-5 py-2 text-sm font-medium text-on-accent hover:bg-accent-strong"
             >
               刷新页面
             </button>

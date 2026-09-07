@@ -152,9 +152,9 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
     report.holdAvgRatio !== null ? Math.min(100, report.holdAvgRatio * 100) : null
 
   return (
-    <div className="screen-enter w-full max-w-3xl pb-16">
+    <div className="w-full">
       {/* Hero 命中率 */}
-      <header className="pt-12 sm:pt-20">
+      <header className="pt-4">
         <p className="text-micro font-medium uppercase text-muted">
           Practice Report
         </p>

@@ -1,15 +1,14 @@
 import { isBlack, KeyboardLayout, noteName } from '../game/keyboard'
 import { noteRgba } from './notesPalette'
 
-const HEIGHT_WHITE = 118
-const HEIGHT_BLACK = 74
-
 interface Props {
   layout: KeyboardLayout
   width: number
   pressedSet: Set<number>
   targetSet: Set<number>
   wrong: { midi: number; id: number } | null
+  /** 白键高度（全屏布局下随视口缩放），默认 118 */
+  height?: number
 }
 
 /**
@@ -18,13 +17,15 @@ interface Props {
  * - 黑键：深黑渐变 + 顶部棱线高光；按下微降
  * - 目标音：按音高柔光呼吸（target-pulse）；错音红闪；C 音名标注
  */
-export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong }: Props) {
+export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, height }: Props) {
+  const HEIGHT_WHITE = height ?? 118
+  const HEIGHT_BLACK = Math.round(HEIGHT_WHITE * 0.627)
   const midis: number[] = []
   for (let m = layout.lo; m <= layout.hi; m++) midis.push(m)
 
   return (
     <div
-      className="relative select-none overflow-hidden rounded-b-lg bg-raised-2"
+      className="relative shrink-0 select-none overflow-hidden border-t border-border-strong bg-raised-2"
       style={{ width, height: HEIGHT_WHITE }}
     >
       {midis.map(m => {

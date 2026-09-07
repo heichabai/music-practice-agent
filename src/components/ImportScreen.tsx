@@ -140,7 +140,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
   }
 
   return (
-    <div className="screen-enter w-full max-w-2xl">
+    <div className="w-full">
       <div className="flex items-center gap-5 border-b border-border-subtle pb-4">
         <GhostButton onClick={onCancel} className="px-3 py-1 text-xs">
           ‹ 返回
@@ -150,9 +150,9 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
         </span>
       </div>
 
-      <section className="mt-12">
+      <section className="mt-10">
         <h1 className="text-h2 font-black tracking-tight text-primary">📥 导入乐谱</h1>
-        <p className="mt-4 max-w-md text-sm leading-relaxed text-secondary">
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-secondary">
           上传乐谱图片 / PDF 由本地 OMR 引擎离线识别（印刷谱准确率高），或直接导入
           MIDI 文件（100% 精确）。导入后都会进入校对编辑器，试听无误再存入曲库。
         </p>
@@ -165,7 +165,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
           <span className="rounded-full bg-raised-2 px-2.5 py-1">入库练习</span>
         </div>
 
-        <div className="mt-8 space-y-4">
+        <div className="mt-8 grid items-start gap-5 md:grid-cols-2">
           <div className="rounded-xl border border-accent/40 bg-surface p-5 transition-colors duration-200 hover:border-accent/70">
             <div className="flex items-start gap-4">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-amber-400/90 to-orange-600/90 text-slate-950 shadow-[0_4px_16px_rgb(245_158_11/0.35)]">

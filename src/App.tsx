@@ -6,7 +6,7 @@ import { ReportScreen } from './components/ReportScreen'
 import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
-import { GhostButton, PrimaryButton } from './components/ui/Button'
+import { PrimaryButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -14,7 +14,7 @@ import { SONGS } from './game/songs'
 import { saveSession } from './storage/sessionStore'
 import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } from './storage/songStore'
 import type { PracticeMode, Song } from './types'
-import { useElementWidth } from './hooks/useElementWidth'
+import { useElementSize } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
 import { playPianoNote, preloadPiano } from './audio/piano'
 import { useAudioInput } from './audio/useAudioInput'
@@ -38,6 +38,7 @@ import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete, getTutorialProgress, isDevMode, setDevMode } from './storage/tutorialStore'
 import { LessonScreen } from './components/tutorial/LessonScreen'
+import { Sidebar, type NavKey } from './components/Sidebar'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
 
@@ -122,7 +123,10 @@ export default function App() {
     [allSongs, songId, lessonSongOverride],
   )
   const layout = useMemo(() => KeyboardLayout.fromNotes(song.notes), [song])
-  const { ref: playAreaRef, width } = useElementWidth<HTMLDivElement>()
+  const { ref: playAreaRef, width, height: areaH } = useElementSize<HTMLDivElement>()
+  // 键盘占演奏区 20% 高（110~160px 之间），其余全部留给瀑布流画布
+  const keyboardH = Math.round(Math.min(160, Math.max(110, areaH * 0.2)))
+  const canvasH = Math.max(140, Math.round(areaH - keyboardH))
 
   const noteOn = useCallback(
     (midi: number) => {
@@ -365,109 +369,144 @@ export default function App() {
   const accuracy =
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
-  return (
-    <div className="flex min-h-screen flex-col items-center px-4 py-8 text-primary">
-      {screen === 'select' && (
-        <div className="screen-enter w-full max-w-lg pb-28">
-          {/* ===== 顶部状态栏（多邻国式） ===== */}
-          <div className="sticky top-0 z-30 -mx-4 flex items-center justify-between gap-2 bg-base/80 px-4 py-3 backdrop-blur-md">
-            <span className="flex items-center gap-1.5">
-              <span className="text-xl">🔥</span>
-              <span className="text-lg font-black text-[#FF9600]">{gamification.streak}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-lg">⚡</span>
-              <span className="text-base font-bold text-[#FFC800]">{gamification.xp.toLocaleString()}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-lg">👑</span>
-              <span className="text-base font-bold text-[#CE82FF]">Lv.{gamification.level}</span>
-            </span>
-            <div className="flex-1" />
-            <button
-              onClick={() => {
-                const t = getTutorialProgress().completed.length
-                if (t < LESSONS.length) {
-                  setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
-                  setScreen('lesson')
-                } else {
-                  void startSong(lastPlayed.id ?? SONGS[0].id, mode)
-                }
-              }}
-              className="flex items-center gap-1 text-xs font-bold text-[#58CC02] hover:underline"
-            >
-              {mode === 'wait' ? '⏸️ 等待式' : '🎵 自由式'}
-              {' · '}
-              <button onClick={() => setMode(m => m === 'wait' ? 'free' : 'wait')} className="text-[#1CB0F6] hover:underline">
-                切换
-              </button>
-              {' · '}
-              ⚙️ 设置
-            </button>
-            <button
-              onClick={() => {
-                const next = !devMode
-                setDevMode(next)
-                setDevModeState(next)
-              }}
-              title={devMode ? '开发者模式已开启：全部课程已解锁' : '开启开发者模式（解锁全部课程）'}
-              className={`grid h-7 w-7 place-items-center rounded-full text-sm transition-all ${
-                devMode
-                  ? 'bg-[#FF9600]/15 ring-1 ring-[#FF9600]/50'
-                  : 'opacity-40 hover:opacity-80'
-              }`}
-            >
-              🛠
-            </button>
-          </div>
+  /** 带侧栏的页面；演奏/课程/自由弹奏为全屏沉浸页 */
+  const withSidebar =
+    screen === 'select' || screen === 'import' || screen === 'editor' || screen === 'report'
 
+  const sidebarActive: NavKey | null =
+    screen === 'select' ? homeTab : screen === 'import' || screen === 'editor' ? 'import' : null
+
+  const handleNav = (key: NavKey) => {
+    if (key === 'learn' || key === 'songs') {
+      setHomeTab(key)
+      setScreen('select')
+    } else if (key === 'import') {
+      setScreen('import')
+    } else {
+      setFreePlayNoteCount(0)
+      setFreePlayCurrentNote('')
+      void Tone.start()
+      preloadPiano()
+      setScreen('freeplay')
+    }
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden text-primary">
+      {withSidebar && (
+        <Sidebar
+          active={sidebarActive}
+          onNav={handleNav}
+          gamification={gamification}
+          midiLabel={midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
+          devMode={devMode}
+          onToggleDev={() => {
+            const next = !devMode
+            setDevMode(next)
+            setDevModeState(next)
+          }}
+        />
+      )}
+
+      <main className={`min-w-0 flex-1 ${withSidebar ? 'overflow-y-auto' : 'h-full'}`}>
+      {screen === 'select' && (
+        <div className="screen-enter mx-auto w-full max-w-6xl px-8 py-8">
           {/* ===== 继续练习大卡（多邻国式） ===== */}
           {homeTab === 'learn' && (
             <>
-              <button
-                onClick={() => {
-                  const t = getTutorialProgress().completed.length
-                  if (t < LESSONS.length) {
-                    setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
-                    setScreen('lesson')
-                  } else {
-                    void startSong(lastPlayed.id ?? SONGS[0].id, mode)
-                  }
-                }}
-                className="mt-4 w-full"
-              >
-                <DuoButton variant="green" className="w-full py-4 text-lg">
-                  {getTutorialProgress().completed.length < LESSONS.length
-                    ? `继续第 ${getTutorialProgress().completed.length + 1} 课`
-                    : `继续练习 · ${lastPlayed.name ?? SONGS[0].name}`}
-                </DuoButton>
-              </button>
-
-              {/* ===== 学习路径（多邻国之字形，按 Unit 分段） ===== */}
-              {getTutorialProgress().completed.length < LESSONS.length ? (
-                <section className="mt-8">
-                  <LearningPath
-                    lessons={LESSONS}
-                    onOpenLesson={lesson => {
-                      setActiveLesson(lesson)
-                      setScreen('lesson')
-                    }}
-                  />
-                </section>
-              ) : (
-                <div className="mt-8 rounded-2xl border-2 border-[#FFC800]/40 bg-[#FFC800]/10 px-6 py-8 text-center">
-                  <p className="text-3xl">🎓</p>
-                  <p className="mt-2 text-lg font-black text-gray-800">全部课程已完成！</p>
-                  <p className="mt-1 text-sm text-gray-500">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
+              <header className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
+                    Learning Path
+                  </p>
+                  <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">学习路径</h1>
+                  <p className="mt-1.5 text-sm text-secondary">
+                    {MODE_INFO[mode].label} · {MODE_INFO[mode].desc}
+                  </p>
                 </div>
-              )}
+                <button
+                  onClick={() => setMode(m => (m === 'wait' ? 'free' : 'wait'))}
+                  className="rounded-full border border-border-strong px-4 py-1.5 text-xs text-secondary transition-colors hover:border-accent/60 hover:text-accent-strong"
+                >
+                  切换为{mode === 'wait' ? '自由式' : '等待式'}
+                </button>
+              </header>
+
+              <div className="mt-8 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+                <section>
+                  {getTutorialProgress().completed.length < LESSONS.length ? (
+                    <LearningPath
+                      lessons={LESSONS}
+                      onOpenLesson={lesson => {
+                        setActiveLesson(lesson)
+                        setScreen('lesson')
+                      }}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-accent/40 bg-accent-dim/20 px-6 py-10 text-center">
+                      <p className="text-3xl">🎓</p>
+                      <p className="mt-2 text-lg font-bold text-primary">全部课程已完成！</p>
+                      <p className="mt-1 text-sm text-secondary">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
+                    </div>
+                  )}
+                </section>
+
+                <aside className="space-y-4 xl:sticky xl:top-0">
+                  <div className="glass rounded-2xl p-5">
+                    <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">
+                      继续
+                    </p>
+                    <p className="mt-2 text-h3 font-bold text-primary">
+                      {getTutorialProgress().completed.length < LESSONS.length
+                        ? `第 ${getTutorialProgress().completed.length + 1} 课 · ${LESSONS[Math.min(getTutorialProgress().completed.length, LESSONS.length - 1)].title}`
+                        : lastPlayed.name ?? SONGS[0].name}
+                    </p>
+                    <DuoButton
+                      variant="green"
+                      className="mt-4 w-full py-3.5 text-lg"
+                      onClick={() => {
+                        const t = getTutorialProgress().completed.length
+                        if (t < LESSONS.length) {
+                          setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
+                          setScreen('lesson')
+                        } else {
+                          void startSong(lastPlayed.id ?? SONGS[0].id, mode)
+                        }
+                      }}
+                    >
+                      {getTutorialProgress().completed.length < LESSONS.length ? '继续上课' : '继续练习'}
+                    </DuoButton>
+                  </div>
+                  <div className="rounded-2xl border border-border-subtle bg-raised/50 p-4 text-caption leading-relaxed text-secondary">
+                    💡 连接 MIDI 键盘体验最佳；也可以直接用电脑键盘（Z 行低八度 · A 行高八度）。
+                  </div>
+                </aside>
+              </div>
             </>
           )}
 
           {homeTab === 'songs' && (
             <>
-              {/* ===== 曲目 ===== */}
-              <section className="mt-4">
+              <header className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
+                    Library
+                  </p>
+                  <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">曲库</h1>
+                  <p className="mt-1.5 text-sm text-secondary">
+                    {allSongs.length} 首 · {MODE_INFO[mode].label}
+                  </p>
+                </div>
+                <p className="text-xs text-muted">
+                  {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
+                  {' · '}
+                  <button onClick={() => void toggleMic()} className="text-info hover:underline">
+                    {micEnabled ? '麦克风已开' : '开麦克风'}
+                  </button>
+                </p>
+              </header>
+
+              <section className="mt-8">
                 <SongSection
                   songs={allSongs.map(s => ({ ...s, source: (s as CustomSong).source }))}
                   onPlay={s => void startSong(s.id, mode)}
@@ -477,128 +516,57 @@ export default function App() {
                   }}
                 />
               </section>
-
-              {/* ===== 功能按钮 ===== */}
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <DuoButton
-                  variant="purple"
-                  className="py-3 text-sm"
-                  onClick={() => {
-                    setFreePlayNoteCount(0)
-                    setFreePlayCurrentNote('')
-                    void Tone.start()
-                    preloadPiano()
-                    setScreen('freeplay')
-                  }}
-                >
-                  🎹 自由弹奏
-                </DuoButton>
-                <DuoButton
-                  variant="blue"
-                  className="py-3 text-sm"
-                  onClick={() => setScreen('import')}
-                >
-                  📥 导入乐谱
-                </DuoButton>
-              </div>
-
-              {/* MIDI 状态 */}
-              <p className="mt-4 text-center text-xs text-gray-500">
-                {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
-                {' · '}
-                <button onClick={() => void toggleMic()} className="text-[#1CB0F6] hover:underline">
-                  {micEnabled ? '麦克风已开' : '开麦克风'}
-                </button>
-              </p>
             </>
           )}
         </div>
       )}
 
-      {/* ===== 底部 Tab 导航（多邻国式）：必须放在 screen-enter 容器外，
-          否则容器动画结束时的 transform 会把 fixed 钉在容器底部而非视口底部 ===== */}
-      {screen === 'select' && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-gray-200 bg-white/95 backdrop-blur-md">
-          <div className="mx-auto flex max-w-lg">
-            {(
-              [
-                { key: 'learn', icon: '🏠', label: '学习', color: '#1CB0F6' },
-                { key: 'songs', icon: '🎵', label: '曲库', color: '#CE82FF' },
-              ] as const
-            ).map(tab => {
-              const active = homeTab === tab.key
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setHomeTab(tab.key)}
-                  className="flex flex-1 flex-col items-center gap-0.5 py-2.5 transition-colors"
-                  style={{
-                    borderTop: active ? `3px solid ${tab.color}` : '3px solid transparent',
-                    marginTop: '-2px',
-                  }}
-                >
-                  <span
-                    className={`text-xl transition-transform ${active ? 'scale-110' : 'opacity-50 grayscale'}`}
-                  >
-                    {tab.icon}
-                  </span>
-                  <span
-                    className="text-[11px] font-black"
-                    style={{ color: active ? tab.color : '#9ca3af' }}
-                  >
-                    {tab.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-      )}
-
       {screen === 'play' && (
-        <div className="screen-enter w-full max-w-4xl">
-          {/* 极简 HUD：发丝下边框 + 细线进度条 */}
-          <div className="glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-5 py-3.5 text-sm max-sm:text-xs">
+        <div className="screen-enter flex h-full flex-col">
+          {/* 顶部细 HUD：退出 / 曲名 / 进度 / 命中统计 / 开关 */}
+          <div className="flex h-12 shrink-0 items-center gap-x-4 border-b border-border-subtle bg-surface/80 px-4 text-sm backdrop-blur-md max-sm:gap-x-2.5 max-sm:text-xs">
             <button
               onClick={() => setScreen('select')}
-              className="grid h-9 w-9 place-items-center rounded-full bg-gray-200 text-base text-gray-700 shadow-[0_2px_0_#c4c4c4] transition-all active:translate-y-[2px] active:shadow-none"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-lg text-secondary transition-colors hover:bg-raised hover:text-primary"
               aria-label="退出练习"
             >
               ‹
             </button>
-            <span className="font-medium text-primary">
+            <span className="min-w-0 shrink truncate font-medium text-primary">
               {song.name}
               <span className="ml-2 text-muted">{MODE_INFO[mode].label}</span>
             </span>
-            <div className="relative h-px min-w-16 flex-1 overflow-hidden bg-border-strong/60">
+            <div className="relative h-1 min-w-16 flex-1 overflow-hidden rounded-full bg-raised-2">
               <div
-                className="absolute inset-y-0 left-0 bg-accent transition-all duration-150"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-accent shadow-[0_0_10px_rgb(242_178_52/0.5)] transition-all duration-150"
                 style={{ width: `${(hud?.progress ?? 0) * 100}%` }}
               />
             </div>
-            <div className="flex items-center gap-x-5 tabular-nums">
+            <div className="flex shrink-0 items-center gap-x-4 tabular-nums max-sm:gap-x-2.5">
               <span className="text-hit">命中 {hud?.hits ?? 0}</span>
               {mode === 'free' && <span className="text-miss">漏弹 {hud?.misses ?? 0}</span>}
               <span className="text-wrong">错音 {hud?.errors ?? 0}</span>
-              <span className="text-secondary">
-                {(accuracy * 100).toFixed(0)}%
-              </span>
+              <span className="text-secondary">{(accuracy * 100).toFixed(0)}%</span>
             </div>
             <button
               onClick={() => setSynthOn(v => !v)}
-              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+              className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
+                synthOn ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
+              }`}
             >
-              伴奏音 {synthOn ? '开' : '关'}
+              伴奏 {synthOn ? '开' : '关'}
             </button>
             <button
               onClick={() => setShowScore(v => !v)}
-              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+              className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
+                showScore ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
+              }`}
             >
-              乐谱 {showScore ? '开' : '关'}
+              乐谱
             </button>
           </div>
 
-          {/* 乐谱条：单行横向滚动，跟随进度 */}
+          {/* 乐谱条：抽屉式横向滚动，跟随进度（谱纸白底） */}
           {showScore && (
             <ScorePanel
               song={song}
@@ -608,75 +576,84 @@ export default function App() {
             />
           )}
 
-          {/* 画布 + 键盘无缝衔接 */}
-          <div ref={playAreaRef} className="relative w-full">
-            <FallingNotes engineRef={engineRef} layout={layout} width={width} />
+          {/* 瀑布流占满剩余空间 + 键盘贴底 */}
+          <div ref={playAreaRef} className="relative flex min-h-0 flex-1 flex-col">
+            <FallingNotes engineRef={engineRef} layout={layout} width={width} height={canvasH} />
             <PianoKeyboard
               layout={layout}
               width={width}
+              height={keyboardH}
               pressedSet={pressedSet}
               targetSet={targetSet}
               wrong={wrong}
             />
+            <p
+              className="pointer-events-none absolute inset-x-0 text-center text-[11px] text-muted"
+              style={{ bottom: keyboardH + 10 }}
+            >
+              {mode === 'wait'
+                ? hud?.waiting
+                  ? '弹奏亮起的目标键 · 弹对才前进'
+                  : '音符下落中…'
+                : '跟上节奏 · 音符到判定线时弹奏'}
+            </p>
           </div>
-
-          <p className="mt-5 text-center text-xs text-muted">
-            {mode === 'wait'
-              ? hud?.waiting
-                ? '弹奏亮起的目标键 · 弹对才前进'
-                : '音符下落中…'
-              : '跟上节奏 · 音符到判定线时弹奏'}
-          </p>
         </div>
       )}
 
       {screen === 'lesson' && activeLesson !== null && (
-        <div className="screen-enter flex w-full justify-center">
-          <LessonScreen
-            lesson={activeLesson}
-            nextLesson={LESSONS[activeLesson.order] ?? null}
-            onBack={() => setScreen('select')}
-            onPractice={(s, lessonId) => void startLessonPractice(s, lessonId)}
-            onNextLesson={lesson => {
-              setActiveLesson(lesson)
-              window.scrollTo({ top: 0 })
-            }}
-          />
+        <div className="screen-enter h-full overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-6 py-8">
+            <LessonScreen
+              lesson={activeLesson}
+              nextLesson={LESSONS[activeLesson.order] ?? null}
+              onBack={() => setScreen('select')}
+              onPractice={(s, lessonId) => void startLessonPractice(s, lessonId)}
+              onNextLesson={lesson => {
+                setActiveLesson(lesson)
+                window.scrollTo({ top: 0 })
+              }}
+            />
+          </div>
         </div>
       )}
 
       {screen === 'freeplay' && (
-        <div className="screen-enter w-full max-w-4xl">
-          <div className="glass flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3 text-sm">
-            <GhostButton
+        <div className="screen-enter flex h-full flex-col">
+          <div className="flex h-12 shrink-0 items-center gap-x-4 border-b border-border-subtle bg-surface/80 px-4 text-sm backdrop-blur-md">
+            <button
               onClick={() => {
                 if (videoRecorder.state === 'recording') videoRecorder.stop()
                 setScreen('select')
               }}
-              className="px-3 py-1 text-xs"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-lg text-secondary transition-colors hover:bg-raised hover:text-primary"
+              aria-label="退出自由弹奏"
             >
-              ‹ 退出
-            </GhostButton>
+              ‹
+            </button>
             <span className="font-medium text-primary">自由弹奏</span>
+            <span className="text-caption text-muted">弹奏任何音符 · 没有对错 · 享受音乐</span>
             <div className="flex-1" />
             {freePlayCurrentNote !== '' && (
-              <span className="rounded-full bg-accent/15 px-3 py-1 text-body font-semibold tabular-nums text-accent-strong">
+              <span className="rounded-full bg-accent/15 px-3 py-1 text-body font-semibold tabular-nums text-accent-strong shadow-[0_0_16px_rgb(242_178_52/0.25)]">
                 {freePlayCurrentNote}
               </span>
             )}
             <span className="text-caption tabular-nums text-muted">{freePlayNoteCount} 音</span>
             <button
               onClick={() => setSynthOn(v => !v)}
-              className="rounded-full px-3 py-1 text-xs text-muted transition-colors hover:bg-raised hover:text-primary"
+              className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
+                synthOn ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
+              }`}
             >
-              伴奏音 {synthOn ? '开' : '关'}
+              伴奏 {synthOn ? '开' : '关'}
             </button>
             <button
               onClick={() => {
                 if (videoRecorder.state === 'recording') videoRecorder.stop()
                 else videoRecorder.start()
               }}
-              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
+              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
                 videoRecorder.state === 'recording'
                   ? 'bg-wrong/20 text-wrong'
                   : 'bg-accent/15 text-accent-strong hover:bg-accent/25'
@@ -694,31 +671,29 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-3 overflow-hidden rounded-b-xl">
+          <div ref={playAreaRef} className="relative flex min-h-0 flex-1 flex-col">
             <FreePlayCanvas
               canvasRef={freePlayCanvasRef}
               layout={freePlayLayout}
-              width={width || 900}
+              width={width}
+              height={canvasH}
               onNoteCountChange={setFreePlayNoteCount}
               onCurrentNoteChange={setFreePlayCurrentNote}
             />
             <PianoKeyboard
               layout={freePlayLayout}
-              width={width || 900}
+              width={width}
+              height={keyboardH}
               pressedSet={pressedSet}
               targetSet={new Set()}
               wrong={null}
             />
           </div>
-
-          <p className="mt-3 text-center text-caption text-muted">
-            弹奏任何音符 · 没有对错 · 享受音乐
-          </p>
         </div>
       )}
 
       {screen === 'import' && (
-        <div className="screen-enter flex w-full justify-center">
+        <div className="screen-enter mx-auto w-full max-w-5xl px-8 py-10">
           <ImportScreen
             onDraft={(song, source, info, imageUrl) => {
               setDraft({ song, source, info, imageUrl })
@@ -730,7 +705,7 @@ export default function App() {
       )}
 
       {screen === 'editor' && draft !== null && (
-        <div className="screen-enter flex w-full justify-center">
+        <div className="screen-enter w-full px-6 py-6">
           <PianoRollEditor
             initial={draft.song}
             source={draft.source}
@@ -750,42 +725,41 @@ export default function App() {
         </div>
       )}
 
-      {screen === 'report' && report && fromLessonId !== null && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {(() => {
-            const lesson = LESSONS.find(l => l.id === fromLessonId) ?? null
-            const next = lesson !== null ? LESSONS[lesson.order] ?? null : null
-            return (
-              <>
-                <span className="rounded-full bg-hit/15 px-4 py-2 text-body text-hit">
-                  ✓ {lesson?.title ?? '课程'} 练习完成
-                </span>
-                <PrimaryButton
-                  onClick={() => {
-                    if (lesson !== null) {
-                      markLessonComplete(lesson.id)
-                      applyGamification(gamifyLessonComplete(gamification, lesson.order))
-                    }
-                    if (next !== null) {
-                      setActiveLesson(next)
-                      setFromLessonId(null)
-                      setScreen('lesson')
-                    } else {
-                      setFromLessonId(null)
-                      setScreen('select')
-                    }
-                  }}
-                >
-                  {next !== null ? `继续：第 ${next.order} 课 ${next.title}` : '返回课程'}
-                </PrimaryButton>
-              </>
-            )
-          })()}
-        </div>
-      )}
-
       {screen === 'report' && report && (
-        <div className="screen-enter flex w-full justify-center">
+        <div className="screen-enter mx-auto w-full max-w-4xl px-8 py-8">
+          {fromLessonId !== null && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              {(() => {
+                const lesson = LESSONS.find(l => l.id === fromLessonId) ?? null
+                const next = lesson !== null ? LESSONS[lesson.order] ?? null : null
+                return (
+                  <>
+                    <span className="rounded-full bg-hit/15 px-4 py-2 text-body text-hit">
+                      ✓ {lesson?.title ?? '课程'} 练习完成
+                    </span>
+                    <PrimaryButton
+                      onClick={() => {
+                        if (lesson !== null) {
+                          markLessonComplete(lesson.id)
+                          applyGamification(gamifyLessonComplete(gamification, lesson.order))
+                        }
+                        if (next !== null) {
+                          setActiveLesson(next)
+                          setFromLessonId(null)
+                          setScreen('lesson')
+                        } else {
+                          setFromLessonId(null)
+                          setScreen('select')
+                        }
+                      }}
+                    >
+                      {next !== null ? `继续：第 ${next.order} 课 ${next.title}` : '返回课程'}
+                    </PrimaryButton>
+                  </>
+                )
+              })()}
+            </div>
+          )}
           <ReportScreen
             report={report}
             onRetry={() => void startSong(song.id, mode)}
@@ -793,6 +767,7 @@ export default function App() {
           />
         </div>
       )}
+      </main>
       <AchievementToast
         queue={achievementQueue}
         onDismiss={id => setAchievementQueue(prev => prev.filter(a => a.id !== id))}

@@ -530,13 +530,13 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
   }, [engineRef])
 
   return (
-    <div className="score-strip relative border-b border-border-subtle bg-raised/40">
+    <div className="score-strip relative shrink-0 border-b border-black/15">
       {imageUrl !== undefined && (
-        <div className="absolute right-12 top-1.5 z-10 flex overflow-hidden rounded-full border border-border-strong text-[10px]">
+        <div className="absolute right-12 top-1.5 z-10 flex overflow-hidden rounded-full border border-black/20 text-[10px]">
           <button
             onClick={() => setTab('notation')}
             className={`px-2.5 py-0.5 transition-colors ${
-              tab === 'notation' ? 'bg-primary text-base' : 'text-secondary hover:text-primary'
+              tab === 'notation' ? 'bg-[#20242f] text-[#f2f3f7]' : 'text-[#5c6474] hover:text-[#17110a]'
             }`}
           >
             五线谱
@@ -544,7 +544,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
           <button
             onClick={() => setTab('image')}
             className={`px-2.5 py-0.5 transition-colors ${
-              tab === 'image' ? 'bg-primary text-base' : 'text-secondary hover:text-primary'
+              tab === 'image' ? 'bg-[#20242f] text-[#f2f3f7]' : 'text-[#5c6474] hover:text-[#17110a]'
             }`}
           >
             原图
@@ -554,7 +554,7 @@ export function ScorePanel({ song, engineRef, imageUrl, onClose }: Props) {
       <button
         onClick={onClose}
         aria-label="关闭乐谱条"
-        className="absolute right-2 top-0.5 z-10 rounded-full px-2 py-0.5 text-sm text-muted transition-colors hover:text-wrong"
+        className="absolute right-2 top-0.5 z-10 rounded-full px-2 py-0.5 text-sm text-[#5c6474] transition-colors hover:text-wrong"
       >
         ×
       </button>

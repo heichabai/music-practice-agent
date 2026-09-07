@@ -30,12 +30,14 @@ interface Ember {
 interface Props {
   layout: KeyboardLayout
   width: number
+  /** 画布高度（全屏布局下由父级测量传入），默认 480 */
+  height?: number
   canvasRef?: React.RefObject<HTMLCanvasElement | null>
   onNoteCountChange?: (count: number) => void
   onCurrentNoteChange?: (name: string) => void
 }
 
-export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCountChange, onCurrentNoteChange }: Props) {
+export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: externalRef, onNoteCountChange, onCurrentNoteChange }: Props) {
   const notesRef = useRef<RisingNote[]>([])
   const embersRef = useRef<Ember[]>([])
   const noteCountRef = useRef(0)
@@ -52,9 +54,9 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
 
     const dpr = window.devicePixelRatio || 1
     canvas.width = Math.max(1, Math.floor(width * dpr))
-    canvas.height = Math.floor(CANVAS_H * dpr)
+    canvas.height = Math.floor(height * dpr)
     canvas.style.width = `${width}px`
-    canvas.style.height = `${CANVAS_H}px`
+    canvas.style.height = `${height}px`
 
     const reduceMotion =
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -77,7 +79,7 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
           const g = layout.geom(detail.midi, width)
           const { h } = noteHsl(detail.midi)
           const cx = g.x + g.w / 2
-          const cy = CANVAS_H - HIT_LINE_OFFSET
+          const cy = height - HIT_LINE_OFFSET
           for (let k = 0; k < 14; k++) {
             const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.2
             const speed = 60 + Math.random() * 120
@@ -124,36 +126,37 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
       lastT = now
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, width, CANVAS_H)
+      ctx.clearRect(0, 0, width, height)
 
-      // 背景
-      const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
-      bg.addColorStop(0, '#f7f8fa')
-      bg.addColorStop(1, '#f0f0f3')
+      // 背景：深夜舞台
+      const bg = ctx.createLinearGradient(0, 0, 0, height)
+      bg.addColorStop(0, '#0b0e15')
+      bg.addColorStop(1, '#0d1019')
       ctx.fillStyle = bg
-      ctx.fillRect(0, 0, width, CANVAS_H)
+      ctx.fillRect(0, 0, width, height)
 
-      // 中央微亮晕影
+      // 中央暖金聚光 + 四周暗角
       const halo = ctx.createRadialGradient(
-        width * 0.5, CANVAS_H * 0.7, 0,
-        width * 0.5, CANVAS_H * 0.7, Math.max(width, CANVAS_H) * 0.7,
+        width * 0.5, height * 0.7, 0,
+        width * 0.5, height * 0.7, Math.max(width, height) * 0.7,
       )
-      halo.addColorStop(0, 'rgba(0,0,0,0.01)')
-      halo.addColorStop(1, 'rgba(0,0,0,0.02)')
+      halo.addColorStop(0, 'rgba(242,178,52,0.05)')
+      halo.addColorStop(0.6, 'rgba(0,0,0,0)')
+      halo.addColorStop(1, 'rgba(0,0,0,0.28)')
       ctx.fillStyle = halo
-      ctx.fillRect(0, 0, width, CANVAS_H)
+      ctx.fillRect(0, 0, width, height)
 
-      const hitY = CANVAS_H - HIT_LINE_OFFSET
+      const hitY = height - HIT_LINE_OFFSET
 
       // 八度分隔线
-      ctx.strokeStyle = 'rgba(148,163,184,0.08)'
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)'
       ctx.lineWidth = 1
       for (let m = layout.lo; m <= layout.hi; m++) {
         if (m % 12 === 0 && m !== layout.lo) {
           const g = layout.geom(m, width)
           ctx.beginPath()
           ctx.moveTo(g.x, 0)
-          ctx.lineTo(g.x, CANVAS_H)
+          ctx.lineTo(g.x, height)
           ctx.stroke()
         }
       }
@@ -170,7 +173,7 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
         const heightPx = Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
         const topY = bottomY - heightPx
 
-        if (topY > CANVAS_H + 10 || bottomY < -20) {
+        if (topY > height + 10 || bottomY < -20) {
           if (n.endMs !== null && bottomY < -40) notes.splice(i, 1)
           continue
         }
@@ -184,10 +187,10 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
 
         // 渐隐（飘远后渐淡）
         const distFromLine = hitY - topY
-        const fadeStart = CANVAS_H * 0.5
+        const fadeStart = height * 0.5
         const alpha = isHeld
           ? 0.88
-          : Math.max(0, 1 - Math.max(0, distFromLine - fadeStart) / (CANVAS_H * 0.4)) * 0.85
+          : Math.max(0, 1 - Math.max(0, distFromLine - fadeStart) / (height * 0.4)) * 0.85
 
         if (alpha <= 0.01) continue
 
@@ -242,8 +245,8 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
         ctx.shadowBlur = 0
       }
 
-      // 判定线
-      ctx.fillStyle = 'rgba(100,116,139,0.5)'
+      // 判定线（金色）
+      ctx.fillStyle = 'rgba(242,178,52,0.4)'
       ctx.fillRect(0, hitY, width, 1.5)
 
       raf = requestAnimationFrame(draw)
@@ -254,9 +257,9 @@ export function FreePlayCanvas({ layout, width, canvasRef: externalRef, onNoteCo
       cancelAnimationFrame(raf)
       window.removeEventListener('app-note', onAppNote)
     }
-  }, [layout, width])
+  }, [layout, width, height])
 
-  return <canvas ref={externalRef ?? undefined} className="block rounded-t-lg" />
+  return <canvas ref={externalRef ?? undefined} className="block" />
 }
 
 export { CANVAS_H as FREEPLAY_CANVAS_H }

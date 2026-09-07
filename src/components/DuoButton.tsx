@@ -2,12 +2,12 @@ import type { ReactNode } from 'react'
 
 type Variant = 'green' | 'blue' | 'purple' | 'orange' | 'dark'
 
-const COLORS: Record<Variant, { bg: string; shadow: string; hover: string }> = {
-  green: { bg: '#58CC02', shadow: '#46A302', hover: '#61E002' },
-  blue: { bg: '#1CB0F6', shadow: '#1899D6', hover: '#31BAFF' },
-  purple: { bg: '#CE82FF', shadow: '#A568CC', hover: '#D895FF' },
-  orange: { bg: '#FF9600', shadow: '#E08600', hover: '#FFA31A' },
-  dark: { bg: '#2B2B33', shadow: '#1E1E25', hover: '#35353E' },
+const COLORS: Record<Variant, { from: string; to: string; glow: string }> = {
+  green: { from: '#5be37d', to: '#1faf4a', glow: 'rgb(74 222 128 / 0.35)' },
+  blue: { from: '#54c5f8', to: '#1d8fe0', glow: 'rgb(56 189 248 / 0.35)' },
+  purple: { from: '#cb9dff', to: '#9d6bf5', glow: 'rgb(168 130 255 / 0.4)' },
+  orange: { from: '#ffc05c', to: '#ef8a10', glow: 'rgb(251 146 60 / 0.4)' },
+  dark: { from: '#2e3650', to: '#1f2637', glow: 'rgb(0 0 0 / 0.45)' },
 }
 
 interface Props {
@@ -18,21 +18,19 @@ interface Props {
   disabled?: boolean
 }
 
-/** 多邻国风格 3D 按压按钮：亮色底 + 深色底边 + 按下位移 */
+/** 深色舞台按钮：竖向渐变 + 彩色辉光 + 顶部高光，按下微沉 */
 export function DuoButton({ children, variant = 'green', onClick, className = '', disabled = false }: Props) {
   const c = COLORS[variant]
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`relative select-none rounded-2xl font-extrabold tracking-wide text-white transition-all duration-100 active:translate-y-[4px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`relative select-none rounded-xl font-bold tracking-wide text-white transition-all duration-150 hover:brightness-110 active:translate-y-[1px] active:brightness-95 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
       style={{
-        background: c.bg,
-        boxShadow: `0 4px 0 ${c.shadow}`,
-        textShadow: '0 1px 2px rgba(0,0,0,0.15)',
+        background: `linear-gradient(180deg, ${c.from} 0%, ${c.to} 100%)`,
+        boxShadow: `0 0 24px ${c.glow}, inset 0 1px 0 rgb(255 255 255 / 0.28), 0 3px 10px rgb(0 0 0 / 0.45)`,
+        textShadow: '0 1px 2px rgba(0,0,0,0.35)',
       }}
-      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = c.hover }}
-      onMouseLeave={e => { e.currentTarget.style.background = c.bg }}
     >
       {children}
     </button>

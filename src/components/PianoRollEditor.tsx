@@ -250,12 +250,12 @@ export function PianoRollEditor({ initial, source, info, onSave, onCancel }: Pro
   }
 
   return (
-    <div className="screen-enter w-full max-w-5xl">
+    <div className="w-full">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border-subtle pb-4 text-sm">
         <GhostButton onClick={onCancel} className="px-3 py-1 text-xs">
           ‹ 返回
         </GhostButton>
-        <span className="text-xs font-black uppercase tracking-wider text-[#1CB0F6]">
+        <span className="text-xs font-black uppercase tracking-wider text-info">
           {source === 'image' ? '识谱校对' : source === 'omr' ? 'OMR 校对' : 'MIDI 校对'}
         </span>
         <input

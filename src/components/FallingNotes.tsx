@@ -12,6 +12,8 @@ interface Props {
   engineRef: RefObject<GameEngine | null>
   layout: KeyboardLayout
   width: number
+  /** 画布高度（全屏布局下由父级测量传入），默认 420 */
+  height?: number
 }
 
 // 余烬 / 光晕粒子
@@ -66,7 +68,7 @@ function makeNoteGradient(
   return g
 }
 
-export function FallingNotes({ engineRef, layout, width }: Props) {
+export function FallingNotes({ engineRef, layout, width, height = CANVAS_H }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -77,9 +79,9 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
 
     const dpr = window.devicePixelRatio || 1
     canvas.width = Math.max(1, Math.floor(width * dpr))
-    canvas.height = Math.floor(CANVAS_H * dpr)
+    canvas.height = Math.floor(height * dpr)
     canvas.style.width = `${width}px`
-    canvas.style.height = `${CANVAS_H}px`
+    canvas.style.height = `${height}px`
 
     const reduceMotion =
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -98,32 +100,33 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
       lastT = now
       const engine = engineRef.current
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, width, CANVAS_H)
+      ctx.clearRect(0, 0, width, height)
 
-      // 背景：浅色
-      ctx.fillStyle = '#f7f8fa'
-      ctx.fillRect(0, 0, width, CANVAS_H)
+      // 背景：深夜舞台
+      ctx.fillStyle = '#0b0e15'
+      ctx.fillRect(0, 0, width, height)
 
-      // 中央微亮晕影（相机感）：稍微提亮画布中央，让粒子/音符更突出
+      // 舞台聚光：中央暖金微光 + 四周暗角，让音符在光束中下落
       const halo = ctx.createRadialGradient(
         width * 0.5,
-        CANVAS_H * 0.55,
+        height * 0.55,
         0,
         width * 0.5,
-        CANVAS_H * 0.55,
-        Math.max(width, CANVAS_H) * 0.85,
+        height * 0.55,
+        Math.max(width, height) * 0.85,
       )
-      halo.addColorStop(0, 'rgba(0,0,0,0.015)')
-      halo.addColorStop(1, 'rgba(0,0,0,0.03)')
+      halo.addColorStop(0, 'rgba(242,178,52,0.045)')
+      halo.addColorStop(0.55, 'rgba(0,0,0,0)')
+      halo.addColorStop(1, 'rgba(0,0,0,0.3)')
       ctx.fillStyle = halo
-      ctx.fillRect(0, 0, width, CANVAS_H)
+      ctx.fillRect(0, 0, width, height)
 
       if (!engine) {
         raf = requestAnimationFrame(draw)
         return
       }
 
-      const hitY = CANVAS_H - HIT_LINE_OFFSET
+      const hitY = height - HIT_LINE_OFFSET
       const pxPerBeat = (hitY - 12) / VISIBLE_BEATS
 
       // ---------- 粒子生成 ----------
@@ -220,9 +223,9 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
           const flicker = 0.7 + 0.3 * Math.abs(Math.sin(now / 38 + i))
           const alpha = Math.max(0, t) * flicker
 
-          ctx.shadowColor = `hsla(${e.hue}, 80%, 78%, ${alpha * 0.85})`
+          ctx.shadowColor = `hsla(${e.hue}, 85%, 65%, ${alpha * 0.85})`
           ctx.shadowBlur = 12
-          ctx.fillStyle = `hsla(${e.hue}, 80%, 92%, ${alpha})`
+          ctx.fillStyle = `hsla(${e.hue}, 85%, 72%, ${alpha})`
           ctx.beginPath()
           ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2)
           ctx.fill()
@@ -243,7 +246,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         const radius = 10 + progress * 30
         ctx.beginPath()
         ctx.arc(g.x + g.w / 2, hitY, radius, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(217, 119, 6, ${(1 - progress) * 0.6})`
+        ctx.strokeStyle = `rgba(251, 191, 36, ${(1 - progress) * 0.65})`
         ctx.lineWidth = 2
         ctx.stroke()
       }
@@ -254,7 +257,7 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         const state = engine.states[i]
         const bottom = hitY + (engine.songTime - note.time) * pxPerBeat
         const top = bottom - Math.max(0.25, note.duration) * pxPerBeat + 5
-        if (bottom < -10 || top > CANVAS_H) continue
+        if (bottom < -10 || top > height) continue
 
         const g = layout.geom(note.midi, width)
         const x = g.black ? g.x : g.x + 2
@@ -281,16 +284,16 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
           blur = reduceMotion ? 0 : 12
           shadowCol = `hsla(${hs.h}, ${hs.s}%, ${Math.min(92, hs.l + 14)}%, 0.6)`
         } else {
-          // pending：贴底色但保留极淡光晕
+          // pending：暗色底 + 淡光晕，浮在深色舞台上
           fill = makeNoteGradient(
             ctx,
             x,
             top,
             h,
             hs.h,
-            hs.s - 10,
-            Math.max(45, hs.l - 12),
-            0.85,
+            hs.s - 8,
+            Math.max(38, hs.l - 32),
+            0.8,
           )
           blur = reduceMotion ? 0 : 5
           shadowCol = `hsla(${hs.h}, ${hs.s}%, ${hs.l}%, 0.4)`
@@ -308,19 +311,19 @@ export function FallingNotes({ engineRef, layout, width }: Props) {
         ctx.fill()
       }
 
-      // ---------- 判定线：1px 发丝 ----------
+      // ---------- 判定线：金色发丝，等待时呼吸 ----------
       ctx.shadowBlur = 0
       const waitAlpha = engine.waiting
-        ? 0.32 + 0.12 * Math.sin(now / 240)
-        : 0.16
-      ctx.fillStyle = `rgba(100,116,139,${waitAlpha})`
+        ? 0.45 + 0.18 * Math.sin(now / 240)
+        : 0.28
+      ctx.fillStyle = `rgba(242, 178, 52, ${waitAlpha})`
       ctx.fillRect(0, hitY, width, 1)
 
       raf = requestAnimationFrame(draw)
     }
     raf = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(raf)
-  }, [engineRef, layout, width])
+  }, [engineRef, layout, width, height])
 
   return <canvas ref={canvasRef} className="block w-full" />
 }

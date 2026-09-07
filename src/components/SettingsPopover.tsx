@@ -48,7 +48,7 @@ export function SettingsPopover({ mode, handFilter, tempoScale, onChange }: Prop
                 key={m}
                 onClick={() => onChange({ mode: m })}
                 className={`flex-1 px-3 py-1.5 text-caption transition-colors ${
-                  mode === m ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
+                  mode === m ? 'bg-primary text-on-accent font-medium' : 'text-secondary hover:text-primary'
                 }`}
               >
                 {MODE_LABELS[m]}
@@ -63,7 +63,7 @@ export function SettingsPopover({ mode, handFilter, tempoScale, onChange }: Prop
                 key={h}
                 onClick={() => onChange({ handFilter: h })}
                 className={`flex-1 px-2 py-1.5 text-caption transition-colors ${
-                  handFilter === h ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
+                  handFilter === h ? 'bg-primary text-on-accent font-medium' : 'text-secondary hover:text-primary'
                 }`}
               >
                 {HAND_LABELS[h]}
@@ -78,7 +78,7 @@ export function SettingsPopover({ mode, handFilter, tempoScale, onChange }: Prop
                 key={v}
                 onClick={() => onChange({ tempoScale: v })}
                 className={`flex-1 px-2 py-1.5 text-caption tabular-nums transition-colors ${
-                  tempoScale === v ? 'bg-primary text-base font-medium' : 'text-secondary hover:text-primary'
+                  tempoScale === v ? 'bg-primary text-on-accent font-medium' : 'text-secondary hover:text-primary'
                 }`}
               >
                 {v === 1 ? '原速' : `${v * 100}%`}
