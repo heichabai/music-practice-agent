@@ -113,6 +113,7 @@ interface Tok {
 function buildVoiceBody(
   notes: Note[],
   key: KeyChoice,
+  minTotal = 0,
 ): { body: string; noteBeats: number[]; eventBeats: number[]; total: number } {
   const events = new Map<number, VoiceEvent>()
   for (const n of [...notes].sort((a, b) => a.time - b.time)) {
@@ -160,6 +161,12 @@ function buildVoiceBody(
         : `[${[...ev.midis].sort((a, b) => a - b).map(m => midiToAbcPitch(m, key)).join('')}]`
     emit(text, start, ev.dur, true)
     pos = start + ev.dur
+  }
+  // 末尾补休止到 minTotal（大谱表两声部等长）：必须走 emit 成为 token，
+  // 否则渲染元素数与 eventBeats 数不一致，逐拍对齐器会整体跳过
+  if (minTotal - pos >= 0.25) {
+    emit('z', pos, Math.round((minTotal - pos) * 4) / 4, false)
+    pos = minTotal
   }
 
   // 组装：拍内双符尾相连（不加空格），其余一律空格分隔
@@ -214,15 +221,12 @@ export function songToAbc(song: Song): AbcResult {
 
   // ---- 大谱表：V:1 右手（高音谱号）+ V:2 左手（低音谱号） ----
   const right = sorted.filter(n => !isLeftHand(n))
-  const r = buildVoiceBody(right, key)
-  const l = buildVoiceBody(left, key)
-
-  // 两声部等长：短的末尾补休止，保证小节线对齐
-  const total = Math.max(r.total, l.total)
-  const padVoice = (v: { body: string; total: number }): string => {
-    const diff = Math.round((total - v.total) * 4) / 4
-    return diff >= 0.25 ? `${v.body}z${durationToAbc(diff)} ` : v.body
-  }
+  const total = Math.max(
+    buildVoiceBody(right, key).total,
+    buildVoiceBody(left, key).total,
+  )
+  const r = buildVoiceBody(right, key, total)
+  const l = buildVoiceBody(left, key, total)
 
   const abc = [
     'X:1',
@@ -232,8 +236,8 @@ export function songToAbc(song: Song): AbcResult {
     'V:2 clef=bass',
     `K:${key.name}`,
     '%%score {1 | 2}',
-    `[V:1] ${padVoice(r)}|]`,
-    `[V:2] ${padVoice(l)}|]`,
+    `[V:1] ${r.body}|]`,
+    `[V:2] ${l.body}|]`,
     '',
   ].join('\n')
 

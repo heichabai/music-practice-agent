@@ -213,13 +213,28 @@ function alignStaves(host: HTMLElement, eventBeats: number[][]): number[] | null
     if (evs.length === 0) continue
     const bb = (el as SVGGElement).getBBox()
     if (cls.includes('beam')) {
-      const inside = evs.filter(e => e.anchor >= bb.x - 8 && e.anchor <= bb.x + bb.width + 8)
-      const sL = inside[0]?.shift ?? 0
-      const sR = inside[inside.length - 1]?.shift ?? sL
+      // 连梁端点按符干 x 精确匹配（±3）：符干就是连梁锚点。
+      // 不能用锚点±容差粗配——十六分音符间距仅 ~11 单位，会把邻组音符吸进来取错位移。
+      const stemX = (e: AlignEvent): number => {
+        const stem = e.el.querySelector('.abcjs-stem')
+        if (stem === null) return e.anchor
+        const sb = (stem as SVGGraphicsElement).getBBox()
+        return sb.x + sb.width / 2
+      }
+      let sL: number | null = null
+      let sR: number | null = null
+      for (const e of evs) {
+        const sx0 = stemX(e)
+        if (sL === null && Math.abs(sx0 - bb.x) < 3) sL = e.shift
+        if (sR === null && Math.abs(sx0 - (bb.x + bb.width)) < 3) sR = e.shift
+      }
+      if (sL === null && sR === null) continue
+      const leftShift = sL ?? sR ?? 0
+      const rightShift = sR ?? sL ?? 0
       const x1 = bb.x
       const x2 = bb.x + bb.width
-      const sx = (x2 + sR - (x1 + sL)) / Math.max(1, x2 - x1)
-      const tx = x1 + sL - sx * x1
+      const sx = (x2 + rightShift - (x1 + leftShift)) / Math.max(1, x2 - x1)
+      const tx = x1 + leftShift - sx * x1
       const prev = el.getAttribute('transform') ?? ''
       el.setAttribute('transform', `matrix(${sx} 0 0 1 ${tx} 0)${prev === '' ? '' : ` ${prev}`}`)
       continue

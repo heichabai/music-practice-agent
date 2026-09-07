@@ -58,7 +58,9 @@ export function musicxmlToSong(xml, fallbackName) {
       const key = `${staff}:${voice}`
       if (!voices.has(key)) voices.set(key, { notes: [], sum: 0 })
       const group = voices.get(key)
-      group.notes.push({ midi, onset, durQ })
+      // 记录谱表归属：staff≥2 → 左手。转谱时按原谱分配声部，而不是按音高猜——
+      // 左手越过中央 C 的音仍应留在低音谱表
+      group.notes.push({ midi, onset, durQ, hand: staff >= 2 ? 'L' : 'R' })
       group.sum += midi
     }
     if (!isChord) {
@@ -89,6 +91,7 @@ export function musicxmlToSong(xml, fallbackName) {
       midi: n.midi,
       time: Math.max(0, Math.round(n.onset * 4) / 4),
       duration: Math.min(16, Math.max(0.25, Math.round(n.durQ * 4) / 4)),
+      hand: n.hand,
     }))
     .filter(n => {
       if (n.midi < 21 || n.midi > 108) return false
