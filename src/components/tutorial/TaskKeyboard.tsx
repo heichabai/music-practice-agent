@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { KeyboardLayout, isBlack } from '../../game/keyboard'
 import type { LessonTask } from '../../game/lessons'
+import { useElementSize } from '../../hooks/useElementWidth'
 
 interface Props {
   task: LessonTask
@@ -10,10 +11,12 @@ interface Props {
 /**
  * 页内互动任务：迷你键盘 + 按键验证。
  * 监听 App 广播的 app-note 事件（MIDI 与电脑键盘统一入口），不重复挂载 MIDI。
+ * 键盘宽度随容器自适应（右栏/窄屏都能填满）。
  */
 export function TaskKeyboard({ task, onSatisfied }: Props) {
   const layout = useMemo(() => new KeyboardLayout(48, 72), [])
-  const width = 520
+  const { ref: kbRef, width: measured } = useElementSize<HTMLDivElement>()
+  const width = Math.max(280, Math.round(measured))
 
   const [done, setDone] = useState(false)
   const [pressed, setPressed] = useState<Set<number>>(new Set())
@@ -144,7 +147,7 @@ export function TaskKeyboard({ task, onSatisfied }: Props) {
         </p>
       )}
 
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto" ref={kbRef}>
         <div className="relative select-none" style={{ width, height: H_WHITE }}>
           {Array.from({ length: layout.hi - layout.lo + 1 }, (_, k) => layout.lo + k).map(m => {
             const g = layout.geom(m, width)

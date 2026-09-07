@@ -417,7 +417,7 @@ export default function App() {
               <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
-                    Learning Path
+                    Learning Score
                   </p>
                   <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">学习路径</h1>
                   <p className="mt-1.5 text-sm text-secondary">
@@ -432,56 +432,51 @@ export default function App() {
                 </button>
               </header>
 
-              <div className="mt-8 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
-                <section>
-                  {getTutorialProgress().completed.length < LESSONS.length ? (
-                    <LearningPath
-                      lessons={LESSONS}
-                      onOpenLesson={lesson => {
-                        setActiveLesson(lesson)
-                        setScreen('lesson')
-                      }}
-                    />
-                  ) : (
-                    <div className="rounded-2xl border border-accent/40 bg-accent-dim/20 px-6 py-10 text-center">
-                      <p className="text-3xl">🎓</p>
-                      <p className="mt-2 text-lg font-bold text-primary">全部课程已完成！</p>
-                      <p className="mt-1 text-sm text-secondary">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
-                    </div>
-                  )}
-                </section>
-
-                <aside className="space-y-4 xl:sticky xl:top-0">
-                  <div className="glass rounded-2xl p-5">
-                    <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">
-                      继续
-                    </p>
-                    <p className="mt-2 text-h3 font-bold text-primary">
-                      {getTutorialProgress().completed.length < LESSONS.length
-                        ? `第 ${getTutorialProgress().completed.length + 1} 课 · ${LESSONS[Math.min(getTutorialProgress().completed.length, LESSONS.length - 1)].title}`
-                        : lastPlayed.name ?? SONGS[0].name}
-                    </p>
-                    <DuoButton
-                      variant="green"
-                      className="mt-4 w-full py-3.5 text-lg"
-                      onClick={() => {
-                        const t = getTutorialProgress().completed.length
-                        if (t < LESSONS.length) {
-                          setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
-                          setScreen('lesson')
-                        } else {
-                          void startSong(lastPlayed.id ?? SONGS[0].id, mode)
-                        }
-                      }}
-                    >
-                      {getTutorialProgress().completed.length < LESSONS.length ? '继续上课' : '继续练习'}
-                    </DuoButton>
-                  </div>
-                  <div className="rounded-2xl border border-border-subtle bg-raised/50 p-4 text-caption leading-relaxed text-secondary">
-                    💡 连接 MIDI 键盘体验最佳；也可以直接用电脑键盘（Z 行低八度 · A 行高八度）。
-                  </div>
-                </aside>
+              {/* 继续横幅 */}
+              <div className="glass mt-6 flex flex-wrap items-center gap-4 rounded-2xl px-6 py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">继续</p>
+                  <p className="mt-1 truncate text-h3 font-bold text-primary">
+                    {getTutorialProgress().completed.length < LESSONS.length
+                      ? `第 ${getTutorialProgress().completed.length + 1} 课 · ${LESSONS[Math.min(getTutorialProgress().completed.length, LESSONS.length - 1)].title}`
+                      : lastPlayed.name ?? SONGS[0].name}
+                  </p>
+                </div>
+                <DuoButton
+                  variant="green"
+                  className="px-8 py-3"
+                  onClick={() => {
+                    const t = getTutorialProgress().completed.length
+                    if (t < LESSONS.length) {
+                      setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
+                      setScreen('lesson')
+                    } else {
+                      void startSong(lastPlayed.id ?? SONGS[0].id, mode)
+                    }
+                  }}
+                >
+                  {getTutorialProgress().completed.length < LESSONS.length ? '继续上课' : '继续练习'}
+                </DuoButton>
               </div>
+
+              {/* 五线谱学习路径（全宽） */}
+              <section className="mt-10">
+                {getTutorialProgress().completed.length < LESSONS.length ? (
+                  <LearningPath
+                    lessons={LESSONS}
+                    onOpenLesson={lesson => {
+                      setActiveLesson(lesson)
+                      setScreen('lesson')
+                    }}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-accent/40 bg-accent-dim/20 px-6 py-10 text-center">
+                    <p className="text-3xl">🎓</p>
+                    <p className="mt-2 text-lg font-bold text-primary">全部课程已完成！</p>
+                    <p className="mt-1 text-sm text-secondary">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
+                  </div>
+                )}
+              </section>
             </>
           )}
 
@@ -603,7 +598,7 @@ export default function App() {
 
       {screen === 'lesson' && activeLesson !== null && (
         <div className="screen-enter h-full overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-6 py-8">
+          <div className="mx-auto w-full max-w-6xl px-6 py-8">
             <LessonScreen
               lesson={activeLesson}
               nextLesson={LESSONS[activeLesson.order] ?? null}

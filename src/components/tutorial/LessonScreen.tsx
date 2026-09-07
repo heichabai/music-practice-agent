@@ -172,129 +172,133 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
 
   return (
     <div className="w-full">
+      {/* 顶栏：返回 + 课号 + 分段进度条 */}
       <div className="flex items-center gap-4">
         <GhostButton onClick={onBack} className="px-3 py-1 text-xs">
           ‹ 课程
         </GhostButton>
-        <span className="text-caption text-muted">第 {lesson.order} 课</span>
-        <div className="flex flex-1 items-center justify-end gap-1.5">
+        <span className="text-micro font-medium uppercase tracking-[0.18em] text-muted">
+          Lesson {String(lesson.order).padStart(2, '0')} · Unit {lesson.unit}
+        </span>
+        <div className="flex flex-1 items-center justify-end gap-1">
           {lesson.steps.map((_, i) => (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === stepIdx
-                  ? 'w-5 bg-accent'
-                  : i < stepIdx
-                    ? 'w-1.5 bg-hit/70'
-                    : 'w-1.5 bg-border-strong'
+              className={`h-1 w-8 rounded-full transition-colors duration-300 ${
+                i < stepIdx
+                  ? 'bg-hit/70'
+                  : i === stepIdx
+                    ? 'bg-accent shadow-[0_0_6px_rgb(242_178_52/0.6)]'
+                    : 'bg-border-strong/60'
               }`}
             />
           ))}
         </div>
       </div>
 
-      <h1 className="mt-8 text-h1 font-semibold text-primary">{lesson.title}</h1>
-      <p className="mt-2 text-body text-secondary">{lesson.subtitle}</p>
+      <div className="mt-8 grid items-start gap-10 xl:grid-cols-[minmax(0,1fr)_380px]">
+        {/* 左栏：教学内容 */}
+        <div className="min-w-0">
+          <h1 className="text-h1 font-semibold text-primary">{lesson.title}</h1>
+          <p className="mt-2 text-body text-secondary">{lesson.subtitle}</p>
 
-      {/* 步骤卡片 */}
-      <div className="glass mt-8 rounded-xl p-6">
-        <div className="flex items-center justify-between">
-          <p className="text-micro font-medium uppercase text-muted">
-            Step {stepIdx + 1} / {lesson.steps.length}
-          </p>
-        </div>
-        <h2 className="mt-3 text-h3 font-semibold text-primary">{step.heading}</h2>
-        <p className="mt-3 text-body leading-relaxed text-secondary">{step.body}</p>
-        {step.diagram !== undefined && (
-          <div className="diagram-card mt-5 px-4 py-4">
-            <Diagram kind={step.diagram} />
+          {/* 步骤卡片 */}
+          <div className="glass mt-8 rounded-2xl p-7">
+            <p className="text-micro font-medium uppercase text-muted">
+              Step {stepIdx + 1} / {lesson.steps.length}
+            </p>
+            <h2 className="mt-3 text-h3 font-semibold text-primary">{step.heading}</h2>
+            <p className="mt-3 text-body leading-relaxed text-secondary">{step.body}</p>
+            {step.diagram !== undefined && (
+              <div className="diagram-card mt-6 px-6 py-6">
+                <Diagram kind={step.diagram} />
+              </div>
+            )}
+            <div className="mt-7 flex items-center justify-between">
+              <GhostButton
+                onClick={() => setStepIdx(i => Math.max(0, i - 1))}
+                className={stepIdx === 0 ? 'pointer-events-none opacity-0' : ''}
+              >
+                上一步
+              </GhostButton>
+              <GhostButton onClick={() => setStepIdx(i => Math.min(lesson.steps.length - 1, i + 1))} className={isLast ? 'pointer-events-none opacity-0' : ''}>
+                下一步
+              </GhostButton>
+            </div>
           </div>
-        )}
-        <div className="mt-6 flex items-center justify-between">
-          <GhostButton
-            onClick={() => setStepIdx(i => Math.max(0, i - 1))}
-            className={stepIdx === 0 ? 'pointer-events-none opacity-0' : ''}
-          >
-            上一步
-          </GhostButton>
-          <GhostButton onClick={() => setStepIdx(i => Math.min(lesson.steps.length - 1, i + 1))} className={isLast ? 'pointer-events-none opacity-0' : ''}>
-            下一步
-          </GhostButton>
         </div>
-      </div>
 
-      {/* 互动任务 */}
-      {lesson.task !== undefined && (
-        <div className="mt-4">
-          <TaskKeyboard key={lesson.id} task={lesson.task} onSatisfied={() => setTaskDone(true)} />
-        </div>
-      )}
+        {/* 右栏：sticky 练习面板 */}
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          {/* 互动任务 */}
+          {lesson.task !== undefined && (
+            <TaskKeyboard key={lesson.id} task={lesson.task} onSatisfied={() => setTaskDone(true)} />
+          )}
 
-      {/* 小结测验 */}
-      {lesson.quiz !== undefined && (
-        <div className="mt-4">
-          <QuizBlock quiz={lesson.quiz} onCorrect={() => setQuizOk(true)} />
-        </div>
-      )}
+          {/* 小结测验 */}
+          {lesson.quiz !== undefined && (
+            <QuizBlock quiz={lesson.quiz} onCorrect={() => setQuizOk(true)} />
+          )}
 
-      {/* 完成与课后练习 */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        {practiceSong !== null && (
-          <PrimaryButton
-            onClick={() => onPractice(practiceSong, lesson.id)}
-            className="bg-gradient-accent shadow-[0_6px_24px_rgb(245_158_11/0.3)]"
-          >
-            开始课后练习
-            <IconChevronRight className="h-4 w-4" />
-          </PrimaryButton>
-        )}
-        {completedNow ? (
-          <span className="rounded-full bg-hit/15 px-4 py-2 text-body text-hit">
-            本课已完成 ✓
-          </span>
-        ) : (
-          <GhostButton
-            onClick={() => {
-              markLessonComplete(lesson.id)
-              setCompletedNow(true)
-            }}
-            className={canComplete ? '' : 'pointer-events-none opacity-40'}
-          >
-            {canComplete ? '完成本课' : lesson.task !== undefined && !taskDone ? '先完成动手任务' : '先通过测验'}
-          </GhostButton>
-        )}
-      </div>
-      {practiceSong !== null && lesson.practiceNote !== undefined && (
-        <p className="mt-3 text-caption text-muted">{lesson.practiceNote}</p>
-      )}
+          {/* 完成与课后练习 */}
+          <div className="glass rounded-xl p-4">
+            {practiceSong !== null && (
+              <PrimaryButton
+                onClick={() => onPractice(practiceSong, lesson.id)}
+                className="w-full justify-center bg-gradient-accent"
+              >
+                开始课后练习
+                <IconChevronRight className="h-4 w-4" />
+              </PrimaryButton>
+            )}
+            {completedNow ? (
+              <p className={`rounded-full bg-hit/15 px-4 py-2 text-center text-body text-hit ${practiceSong !== null ? 'mt-3' : ''}`}>
+                本课已完成 ✓
+              </p>
+            ) : (
+              <GhostButton
+                onClick={() => {
+                  markLessonComplete(lesson.id)
+                  setCompletedNow(true)
+                }}
+                className={`w-full justify-center ${practiceSong !== null ? 'mt-2.5' : ''} ${canComplete ? '' : 'pointer-events-none opacity-40'}`}
+              >
+                {canComplete ? '完成本课' : lesson.task !== undefined && !taskDone ? '先完成动手任务' : '先通过测验'}
+              </GhostButton>
+            )}
+            {practiceSong !== null && lesson.practiceNote !== undefined && (
+              <p className="mt-3 text-caption text-muted">{lesson.practiceNote}</p>
+            )}
+          </div>
 
-      {nextLesson !== null && (
-        <button
-          onClick={() => {
-            // 点击下一课 = 自动视为完成本课
-            if (!completedNow) {
-              markLessonComplete(lesson.id)
-              setCompletedNow(true)
-            }
-            onNextLesson(nextLesson)
-          }}
-          className="sheen group mt-4 flex w-full items-center gap-4 rounded-xl border border-accent/40 bg-accent-dim/30 px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
-        >
-          <span className="flex-1">
-            <span className="block text-caption text-accent-strong">
-              下一课{completedNow ? '' : '（自动完成本课）'}
-            </span>
-            <span className="block text-body font-medium text-primary">
-              第 {nextLesson.order} 课 · {nextLesson.title}
-            </span>
-          </span>
-          <IconChevronRight className="h-4 w-4 text-accent" />
-        </button>
-      )}
+          {/* 下一课 */}
+          {nextLesson !== null && (
+            <button
+              onClick={() => {
+                // 点击下一课 = 自动视为完成本课
+                if (!completedNow) {
+                  markLessonComplete(lesson.id)
+                  setCompletedNow(true)
+                }
+                onNextLesson(nextLesson)
+              }}
+              className="sheen group flex w-full items-center gap-4 rounded-xl border border-accent/40 bg-accent-dim/30 px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
+            >
+              <span className="flex-1">
+                <span className="block text-caption text-accent-strong">
+                  下一课{completedNow ? '' : '（自动完成本课）'}
+                </span>
+                <span className="block text-body font-medium text-primary">
+                  第 {nextLesson.order} 课 · {nextLesson.title}
+                </span>
+              </span>
+              <IconChevronRight className="h-4 w-4 text-accent" />
+            </button>
+          )}
 
-      {/* AI 答疑 */}
-      <div className="mt-8">
-        <TutorBox lesson={lesson} />
+          {/* AI 答疑 */}
+          <TutorBox lesson={lesson} />
+        </aside>
       </div>
     </div>
   )
