@@ -14,6 +14,9 @@ const REALESRGAN_MODELS =
   process.env.REALESRGAN_MODELS ?? `${process.env.HOME}/bin/realesrgan/models`
 const PORT = Number(process.env.OMR_PORT ?? 5175)
 
+// Audiveris 单张谱面有 2000 万像素硬上限（Too large image），留出余量
+const MAX_PIXELS = 19_000_000
+
 let queue = Promise.resolve()
 
 function run(cmd, args, opts = {}) {
@@ -40,6 +43,9 @@ function friendlyError(message) {
   }
   if (/no multi-line staves/i.test(message)) {
     return '图中没有检测到五线谱（请确认是标准五线谱图片）'
+  }
+  if (/too large image/i.test(message)) {
+    return '图片尺寸超出识别引擎上限（请适当缩小图片后再试）'
   }
   return message || 'OMR 识别失败'
 }
@@ -106,8 +112,9 @@ async function handleOmr(bytes, fileName) {
     // 栅格图片：小图（<1000px）AI 超分优先——比 bicubic 放大更能恢复谱线边缘
     let firstPath = originalPath
     if (isRaster) {
-      const info = await run('sips', ['-g', 'pixelHeight', originalPath])
+      const info = await run('sips', ['-g', 'pixelHeight', '-g', 'pixelWidth', originalPath])
       const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+      const w = Number(info.match(/pixelWidth:\s*(\d+)/)?.[1] ?? 0)
       if (h > 0 && h < 1000) {
         try {
           firstPath = await superResolve(originalPath, dir)
@@ -118,10 +125,14 @@ async function handleOmr(bytes, fileName) {
       if (firstPath === originalPath) {
         let target = h
         if (h > 0 && h < 2800) target = Math.min(4 * h, 3000)
+        // 超过引擎像素上限的大图等比缩小，否则会被直接拒收
+        if (w > 0 && h > 0 && w * h > MAX_PIXELS) {
+          target = Math.floor(h * Math.sqrt(MAX_PIXELS / (w * h)))
+        }
         const pngPath = join(dir, 'input-hq.png')
         await run('sips', [
           '-s', 'format', 'png',
-          '--resampleHeight', String(Math.max(h, target)),
+          '--resampleHeight', String(target),
           originalPath, '--out', pngPath,
         ])
         firstPath = pngPath
@@ -134,6 +145,7 @@ async function handleOmr(bytes, fileName) {
       song = await runAudiveris(firstPath, dir)
     } catch (err) {
       if (!isRaster) throw err
+      console.error('[omr] 首轮识别失败:', err.stderr || err.message)
       failed = true
     }
 
