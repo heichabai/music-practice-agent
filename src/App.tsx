@@ -375,7 +375,7 @@ export default function App() {
   const sidebarActive: NavKey | null =
     screen === 'select' ? homeTab : screen === 'import' || screen === 'editor' ? 'import' : null
 
-  const handleNav = (key: NavKey) => {
+  const handleNav = async (key: NavKey) => {
     if (key === 'learn' || key === 'songs') {
       setHomeTab(key)
       setScreen('select')
@@ -383,7 +383,10 @@ export default function App() {
       setScreen('import')
     } else {
       setFreePlayNoteCount(0)
-      void Tone.start()
+      try {
+        await Tone.start()
+        Tone.getContext().lookAhead = 0.005
+      } catch { /* ignore */ }
       preloadPiano()
       if (!synthRef.current) {
         synthRef.current = new Tone.PolySynth(Tone.Synth, {

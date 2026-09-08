@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import * as Tone from 'tone'
 import { isBlack, KeyboardLayout, noteName } from '../game/keyboard'
 import { noteRgba } from './notesPalette'
 
@@ -30,6 +31,7 @@ export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, hei
   const heldRef = useRef(new Set<number>())
 
   const handlePointerDown = (midi: number) => {
+    Tone.start().catch(() => {})
     heldRef.current.add(midi)
     onNoteOn?.(midi)
   }
