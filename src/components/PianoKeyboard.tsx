@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { isBlack, KeyboardLayout, noteName } from '../game/keyboard'
 import { noteRgba } from './notesPalette'
 
@@ -9,6 +10,9 @@ interface Props {
   wrong: { midi: number; id: number } | null
   /** 白键高度（全屏布局下随视口缩放），默认 118 */
   height?: number
+  /** 点击/触摸琴键触发 */
+  onNoteOn?: (midi: number) => void
+  onNoteOff?: (midi: number) => void
 }
 
 /**
@@ -17,16 +21,28 @@ interface Props {
  * - 黑键：深黑渐变 + 顶部棱线高光；按下微降
  * - 目标音：按音高柔光呼吸（target-pulse）；错音红闪；C 音名标注
  */
-export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, height }: Props) {
+export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, height, onNoteOn, onNoteOff }: Props) {
   const HEIGHT_WHITE = height ?? 118
   const HEIGHT_BLACK = Math.round(HEIGHT_WHITE * 0.627)
   const midis: number[] = []
   for (let m = layout.lo; m <= layout.hi; m++) midis.push(m)
 
+  const heldRef = useRef(new Set<number>())
+
+  const handlePointerDown = (midi: number) => {
+    heldRef.current.add(midi)
+    onNoteOn?.(midi)
+  }
+  const handlePointerUp = () => {
+    for (const m of heldRef.current) onNoteOff?.(m)
+    heldRef.current.clear()
+  }
+
   return (
     <div
       className="relative shrink-0 select-none overflow-hidden border-t border-border-strong bg-raised-2"
       style={{ width, height: HEIGHT_WHITE }}
+      onPointerUp={handlePointerUp}
     >
       {midis.map(m => {
         const g = layout.geom(m, width)
@@ -81,6 +97,9 @@ export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, hei
               transition: `transform ${'70ms'} ease-out, background-color 90ms linear`,
               boxShadow,
             }}
+            onPointerDown={e => { e.preventDefault(); handlePointerDown(m) }}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={() => { if (heldRef.current.has(m)) { heldRef.current.delete(m); onNoteOff?.(m) } }}
           >
             {black && (
               <span

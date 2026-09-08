@@ -385,6 +385,12 @@ export default function App() {
       setFreePlayNoteCount(0)
       void Tone.start()
       preloadPiano()
+      if (!synthRef.current) {
+        synthRef.current = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+        }).toDestination()
+        synthRef.current.volume.value = -6
+      }
       setScreen('freeplay')
     }
   }
@@ -579,6 +585,8 @@ export default function App() {
               pressedSet={pressedSet}
               targetSet={targetSet}
               wrong={wrong}
+              onNoteOn={noteOn}
+              onNoteOff={noteOff}
             />
             <p
               className="pointer-events-none absolute inset-x-0 text-center text-[11px] text-muted"
@@ -674,6 +682,8 @@ export default function App() {
               pressedSet={pressedSet}
               targetSet={new Set()}
               wrong={null}
+              onNoteOn={noteOn}
+              onNoteOff={noteOff}
             />
           </div>
         </div>
