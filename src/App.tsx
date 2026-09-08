@@ -107,7 +107,6 @@ export default function App() {
   const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
   const [micEnabled, setMicEnabled] = useState(false)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
-  const [freePlayCurrentNote, setFreePlayCurrentNote] = useState('')
 
   const engineRef = useRef<GameEngine | null>(null)
   const synthRef = useRef<Tone.PolySynth | null>(null)
@@ -384,7 +383,6 @@ export default function App() {
       setScreen('import')
     } else {
       setFreePlayNoteCount(0)
-      setFreePlayCurrentNote('')
       void Tone.start()
       preloadPiano()
       setScreen('freeplay')
@@ -629,11 +627,6 @@ export default function App() {
             <span className="font-medium text-primary">自由弹奏</span>
             <span className="text-caption text-muted">弹奏任何音符 · 没有对错 · 享受音乐</span>
             <div className="flex-1" />
-            {freePlayCurrentNote !== '' && (
-              <span className="rounded-full bg-accent/15 px-3 py-1 text-body font-semibold tabular-nums text-accent-strong shadow-[0_0_16px_rgb(242_178_52/0.25)]">
-                {freePlayCurrentNote}
-              </span>
-            )}
             <span className="text-caption tabular-nums text-muted">{freePlayNoteCount} 音</span>
             <button
               onClick={() => setSynthOn(v => !v)}
@@ -673,7 +666,6 @@ export default function App() {
               width={width}
               height={canvasH}
               onNoteCountChange={setFreePlayNoteCount}
-              onCurrentNoteChange={setFreePlayCurrentNote}
             />
             <PianoKeyboard
               layout={freePlayLayout}
