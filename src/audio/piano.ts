@@ -95,3 +95,62 @@ export async function playPianoNote(midi: number, duration = 0.5): Promise<boole
   piano.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), duration, when)
   return true
 }
+
+// ---------------------------------------------------------------- 延音踏板支持
+let pedalDown = false
+const pedaledNotes = new Set<number>()
+
+export function isPedalDown(): boolean {
+  return pedalDown
+}
+
+/** 实时弹奏按下：triggerAttack 持续响，直到 noteOff / 踏板控制释放 */
+export async function pianoNoteOn(midi: number): Promise<boolean> {
+  try {
+    await Tone.start()
+  } catch {
+    // ignore
+  }
+  const piano = await getPiano()
+  enforceLowLatency()
+  if (piano === null) return false
+  piano.triggerAttack(
+    Tone.Frequency(midi, 'midi').toFrequency(),
+    Tone.getContext().currentTime + LOW_LATENCY,
+  )
+  return true
+}
+
+/** 实时弹奏松开：踏板未踩则立即释放；踩下则挂起等踏板抬起 */
+export async function pianoNoteOff(midi: number): Promise<boolean> {
+  const piano = await getPiano()
+  enforceLowLatency()
+  if (piano === null) return false
+  if (pedalDown) {
+    pedaledNotes.add(midi)
+    return true
+  }
+  piano.triggerRelease(
+    Tone.Frequency(midi, 'midi').toFrequency(),
+    Tone.getContext().currentTime + LOW_LATENCY,
+  )
+  return true
+}
+
+/** 踏板事件：踩下(true)后松键不断音；抬起(false)时把所有挂起的音一起释放 */
+export async function pianoSetSustain(on: boolean): Promise<void> {
+  pedalDown = on
+  if (on) return
+  if (pedaledNotes.size === 0) return
+  const piano = await getPiano()
+  enforceLowLatency()
+  if (piano === null) {
+    pedaledNotes.clear()
+    return
+  }
+  const when = Tone.getContext().currentTime + LOW_LATENCY
+  for (const midi of pedaledNotes) {
+    piano.triggerRelease(Tone.Frequency(midi, 'midi').toFrequency(), when)
+  }
+  pedaledNotes.clear()
+}

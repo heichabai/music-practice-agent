@@ -16,7 +16,7 @@ import { listCustomSongs, saveCustomSong, deleteCustomSong, type CustomSong } fr
 import type { PracticeMode, Song } from './types'
 import { useElementSize } from './hooks/useElementWidth'
 import { useMidiInput } from './midi/useMidiInput'
-import { playPianoNote, preloadPiano } from './audio/piano'
+import { playPianoNote, preloadPiano, pianoNoteOn, pianoNoteOff, pianoSetSustain } from './audio/piano'
 import { useAudioInput } from './audio/useAudioInput'
 import { AdaptiveEngine, type AdaptiveDecision } from './game/adaptive'
 import {
@@ -139,7 +139,8 @@ export default function App() {
       const engine = engineRef.current
       if (engine === null) {
         if (synthOn) {
-          void playPianoNote(midi, 0.45).then(usedPiano => {
+          // 自由弹奏：按下持续响（延音踏板可挂起），采样器不可用时回退合成音色短音
+          void pianoNoteOn(midi).then(usedPiano => {
             if (!usedPiano && synthRef.current) {
               const freq = Tone.Frequency(midi, 'midi').toFrequency()
               synthRef.current.triggerAttackRelease(freq, 0.3, Tone.getContext().currentTime + 0.005)
@@ -197,7 +198,18 @@ export default function App() {
       next.delete(midi)
       return next
     })
+    if (engineRef.current === null) {
+      // 自由弹奏：松开即释放（踏板踩下时由 piano.ts 挂起）
+      void pianoNoteOff(midi)
+    }
     engineRef.current?.release(midi)
+  }, [])
+
+  const [pedalDown, setPedalDown] = useState(false)
+
+  const handlePedal = useCallback((on: boolean) => {
+    setPedalDown(on)
+    void pianoSetSustain(on)
   }, [])
 
   const handleNote = useCallback(
@@ -208,7 +220,7 @@ export default function App() {
     [noteOn, noteOff],
   )
 
-  const { status: midiStatus, deviceName } = useMidiInput(handleNote)
+  const { status: midiStatus, deviceName } = useMidiInput(handleNote, handlePedal)
 
   const audioInput = useAudioInput(handleNote)
 
@@ -644,6 +656,19 @@ export default function App() {
             <span className="text-caption text-muted">弹奏任何音符 · 没有对错 · 享受音乐</span>
             <div className="flex-1" />
             <span className="text-caption tabular-nums text-muted">{freePlayNoteCount} 音</span>
+            <span
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
+                pedalDown ? 'bg-accent/25 text-accent-strong' : 'text-muted'
+              }`}
+              title="延音踏板（MIDI CC64）"
+            >
+              <span
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  pedalDown ? 'bg-accent shadow-[0_0_8px_rgb(242_178_52/0.8)]' : 'bg-muted/50'
+                }`}
+              />
+              延音
+            </span>
             <button
               onClick={() => setSynthOn(v => !v)}
               className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
