@@ -294,6 +294,11 @@ export default function App() {
     [allSongs],
   )
 
+  // 离开练习页时清空引擎，避免残留引擎导致自由弹奏误走"对错判定"分支而不出声
+  useEffect(() => {
+    if (screen !== 'play') engineRef.current = null
+  }, [screen])
+
   // 主循环：推进引擎时间 + 同步 HUD 与目标键高亮
   useEffect(() => {
     if (screen !== 'play') return

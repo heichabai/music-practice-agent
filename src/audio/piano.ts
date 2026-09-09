@@ -18,7 +18,30 @@ export function enforceLowLatency(): void {
   if (ctx.lookAhead !== LOW_LATENCY) ctx.lookAhead = LOW_LATENCY
 }
 
-enforceLowLatency()
+// 不在模块加载时创建 AudioContext（否则会在用户手势前以 suspended 状态创建，
+// 部分浏览器无法可靠恢复）。改为监听首次用户手势时再创建 + 恢复。
+let unlocked = false
+export function ensureAudioUnlocked(): void {
+  if (unlocked || typeof window === 'undefined') return
+  unlocked = true
+  const unlock = () => {
+    try {
+      // 必须先 getContext() 创建真实上下文（Tone.start() 只对真实上下文有效，
+      // 默认 globalContext 是 DummyContext，resume 是空操作）
+      Tone.getContext()
+      void Tone.start()
+    } catch {
+      /* ignore */
+    }
+    window.removeEventListener('pointerdown', unlock)
+    window.removeEventListener('keydown', unlock)
+    window.removeEventListener('touchstart', unlock)
+  }
+  window.addEventListener('pointerdown', unlock)
+  window.addEventListener('keydown', unlock)
+  window.addEventListener('touchstart', unlock)
+}
+ensureAudioUnlocked()
 
 let sampler: Tone.Sampler | null = null
 let loading: Promise<Tone.Sampler | null> | null = null
