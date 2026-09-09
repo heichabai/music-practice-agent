@@ -285,6 +285,10 @@ function createServer() {
 }
 
 async function main() {
+  // Electron 默认不启用 Chromium 的 Web MIDI 特性，需显式开启，
+  // 否则渲染进程 navigator.requestMIDIAccess 不可用，MIDI 键盘无法识别
+  app.commandLine.appendSwitch('enable-features', 'WebMIDI')
+
   const server = createServer()
   const port = Number(process.env.ELECTRON_APP_PORT ?? 0)
   await new Promise(resolve => {

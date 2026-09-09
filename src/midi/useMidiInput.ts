@@ -40,7 +40,10 @@ export function useMidiInput(onNote: NoteEvent) {
       for (const input of inputs) input.onmidimessage = handleMessage
       if (inputs.length > 0) {
         setStatus('ok')
-        setDeviceName(inputs[0].name ?? 'MIDI 设备')
+        // 优先显示物理 MIDI 键盘，跳过 IAC 虚拟总线等系统虚拟设备
+        const preferred =
+          inputs.find(i => !/IAC|驱动程序|总线|Bus/i.test(i.name ?? '')) ?? inputs[0]
+        setDeviceName(preferred.name ?? 'MIDI 设备')
       } else {
         setStatus('no-device')
         setDeviceName('')
