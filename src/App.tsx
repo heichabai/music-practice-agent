@@ -34,6 +34,7 @@ import { SongSection } from './components/SongCard'
 import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
 import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { FreePlayCanvas } from './components/FreePlayCanvas'
+import { FreePlayInfoBar } from './components/FreePlayInfoBar'
 import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete, getTutorialProgress, isDevMode, setDevMode } from './storage/tutorialStore'
@@ -126,6 +127,8 @@ export default function App() {
   // 键盘占演奏区 20% 高（110~160px 之间），其余全部留给瀑布流画布
   const keyboardH = Math.round(Math.min(160, Math.max(110, areaH * 0.2)))
   const canvasH = Math.max(140, Math.round(areaH - keyboardH))
+  // 自由弹奏页在画布与琴键之间多一条音名/和弦信息条（h-10 = 40px）
+  const freePlayCanvasH = Math.max(140, canvasH - 40)
 
   const noteOn = useCallback(
     (midi: number) => {
@@ -190,6 +193,14 @@ export default function App() {
     [],
   )
 
+  const [pedalDown, setPedalDown] = useState(false)
+  // 踏板挂起音的镜像：松键后仍在响的音（与 piano.ts 的 pedaledNotes 一致）
+  const [heldPedalNotes, setHeldPedalNotes] = useState<Set<number>>(new Set())
+  const pedalRef = useRef(false)
+  useEffect(() => {
+    pedalRef.current = pedalDown
+  }, [pedalDown])
+
   const noteOff = useCallback((midi: number) => {
     window.dispatchEvent(new CustomEvent('app-note', { detail: { midi, on: false } }))
     setPressedSet(prev => {
@@ -199,16 +210,30 @@ export default function App() {
       return next
     })
     if (engineRef.current === null) {
-      // 自由弹奏：松开即释放（踏板踩下时由 piano.ts 挂起）
+      // 自由弹奏：松开即释放；踏板踩下时音符被挂起继续响，镜像记入显示
+      if (pedalRef.current) {
+        setHeldPedalNotes(prev => {
+          if (prev.has(midi)) return prev
+          const next = new Set(prev)
+          next.add(midi)
+          return next
+        })
+      } else {
+        setHeldPedalNotes(prev => {
+          if (!prev.has(midi)) return prev
+          const next = new Set(prev)
+          next.delete(midi)
+          return next
+        })
+      }
       void pianoNoteOff(midi)
     }
     engineRef.current?.release(midi)
   }, [])
 
-  const [pedalDown, setPedalDown] = useState(false)
-
   const handlePedal = useCallback((on: boolean) => {
     setPedalDown(on)
+    if (!on) setHeldPedalNotes(new Set())
     void pianoSetSustain(on)
   }, [])
 
@@ -227,6 +252,12 @@ export default function App() {
   const freePlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRecorder = useVideoRecorder(freePlayCanvasRef)
   const freePlayLayout = useMemo(() => new KeyboardLayout(36, 95), [])
+  // 正在发声的音 = 按住的键 ∪ 踏板挂起的音（升序），供音名/和弦信息条使用
+  const soundingMidis = useMemo(
+    () =>
+      Array.from(new Set([...pressedSet, ...heldPedalNotes])).sort((a, b) => a - b),
+    [pressedSet, heldPedalNotes],
+  )
 
   const toggleMic = useCallback(async () => {
     if (micEnabled) {
@@ -705,9 +736,10 @@ export default function App() {
               canvasRef={freePlayCanvasRef}
               layout={freePlayLayout}
               width={width}
-              height={canvasH}
+              height={freePlayCanvasH}
               onNoteCountChange={setFreePlayNoteCount}
             />
+            <FreePlayInfoBar midis={soundingMidis} />
             <PianoKeyboard
               layout={freePlayLayout}
               width={width}
