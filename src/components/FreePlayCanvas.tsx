@@ -164,22 +164,24 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
       // 上升音块
       const notes = notesRef.current
 
-      // 清理已飘出屏幕的结束音
+      // 清理已飘出屏幕的结束音（底边 = 结束时刻的位置）
       for (let i = notes.length - 1; i >= 0; i--) {
         const n = notes[i]
         if (n.endMs !== null) {
-          const bottomY = hitY - ((now - n.startMs) / 1000) * RISE_SPEED
-          if (bottomY < -40) notes.splice(i, 1)
+          const endY = hitY - ((now - n.endMs) / 1000) * RISE_SPEED
+          if (endY < -40) notes.splice(i, 1)
         }
       }
 
       const drawNote = (n: RisingNote) => {
-        const heldMs = n.endMs !== null ? n.endMs - n.startMs : now - n.startMs
-        const ageMs = now - n.startMs
-
-        // 底边位置
-        const bottomY = hitY - (ageMs / 1000) * RISE_SPEED
-        const heightPx = Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
+        // 时间映射：顶边 = 开始时刻的位置，底边 = 结束时刻的位置
+        // （按住时底边贴住判定线）。顶边与底边同速上升，
+        // 后按的音块顶边永远在先前音块底边之下 → 永远不会互相覆盖
+        const topYRaw = hitY - ((now - n.startMs) / 1000) * RISE_SPEED
+        const endMs = n.endMs ?? now
+        const bottomY = hitY - ((now - endMs) / 1000) * RISE_SPEED
+        // 极短音给最小高度，向上补足（不侵入下方）
+        const heightPx = Math.max(MIN_BLOCK_H, bottomY - topYRaw)
         const topY = bottomY - heightPx
 
         if (topY > height + 10 || bottomY < -20) return
@@ -230,8 +232,7 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
         ctx.stroke()
       }
 
-      // 分两层绘制：按住的音在下层、已结束的音在上层，
-      // 这样长按的音块向上生长时不会盖住先前短音的块，两者各自完整
+      // 分层兜底：按住的音在下、已结束的音在上（极端重触发时也不遮挡）
       for (const n of notes) if (n.endMs === null) drawNote(n)
       for (const n of notes) if (n.endMs !== null) drawNote(n)
 
