@@ -8,3 +8,4 @@ engine-locals
 !.env.example
 *.log
 .DS_Store
+engine-locals-win

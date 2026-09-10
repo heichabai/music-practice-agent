@@ -1,41 +1,28 @@
 import http from 'node:http'
-import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, writeFile, readdir, rm, readFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join, extname } from 'node:path'
+import { tmpdir, homedir } from 'node:os'
+import { join, extname, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { musicxmlToSong } from './musicxml.mjs'
+import { resolveEngines, IS_WIN } from './engines.mjs'
+import { run, imageSize, resizeToPng, unzipTo } from './native-tools.mjs'
 
-const AUDIVERIS =
-  process.env.AUDIVERIS_BIN ??
-  `${process.env.HOME}/bin/Audiveris.app/Contents/MacOS/Audiveris`
-const REALESRGAN =
-  process.env.REALESRGAN_BIN ?? `${process.env.HOME}/bin/realesrgan/realesrgan-ncnn-vulkan`
-const REALESRGAN_MODELS =
-  process.env.REALESRGAN_MODELS ?? `${process.env.HOME}/bin/realesrgan/models`
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+// 引擎候选：项目内引擎目录（按平台）→ 开发机 ~/bin → 系统安装位置
+const engines = resolveEngines([
+  join(root, IS_WIN ? 'engine-locals-win' : 'engine-locals'),
+  join(homedir(), 'bin'),
+])
+const AUDIVERIS = engines.audiveris
+const REALESRGAN = engines.realesrgan
+const REALESRGAN_MODELS = engines.realesrganModels
 const PORT = Number(process.env.OMR_PORT ?? 5175)
 
 // Audiveris 单张谱面有 2000 万像素硬上限（Too large image），留出余量
 const MAX_PIXELS = 19_000_000
 
 let queue = Promise.resolve()
-
-function run(cmd, args, opts = {}) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      cmd,
-      args,
-      { timeout: 300000, maxBuffer: 16 * 1024 * 1024, ...opts },
-      (err, stdout, stderr) => {
-        if (err) {
-          err.stderr = String(stderr).slice(-500)
-          reject(err)
-        } else {
-          resolve(stdout)
-        }
-      },
-    )
-  })
-}
 
 function friendlyError(message) {
   if (/interline|resolution is too low/i.test(message)) {
@@ -47,6 +34,9 @@ function friendlyError(message) {
   if (/too large image/i.test(message)) {
     return '图片尺寸超出识别引擎上限（请适当缩小图片后再试）'
   }
+  if (/ENOENT|not found|不是内部或外部命令/i.test(message)) {
+    return '未找到 OMR 引擎（Audiveris），请先安装或配置 AUDIVERIS_BIN 环境变量'
+  }
   return message || 'OMR 识别失败'
 }
 
@@ -56,6 +46,7 @@ function isLowQuality(song) {
 }
 
 async function runAudiveris(inputPath, parentDir) {
+  if (!AUDIVERIS) throw new Error('Audiveris not found (set AUDIVERIS_BIN)')
   const stamp = Math.random().toString(36).slice(2, 6)
   const outDir = join(parentDir, `out-${stamp}`)
   await mkdir(outDir, { recursive: true })
@@ -65,7 +56,7 @@ async function runAudiveris(inputPath, parentDir) {
     throw new Error('NO_OUTPUT')
   }
   const xmlDir = join(parentDir, `xml-${stamp}`)
-  await run('unzip', ['-o', join(outDir, mxlFiles[0]), '-d', xmlDir])
+  await unzipTo(join(outDir, mxlFiles[0]), xmlDir)
   const xmlFiles = (await readdir(xmlDir)).filter(
     f => f.endsWith('.xml') && !f.startsWith('META'),
   )
@@ -75,6 +66,7 @@ async function runAudiveris(inputPath, parentDir) {
 }
 
 async function superResolve(inputPath, parentDir) {
+  if (!REALESRGAN) throw new Error('Real-ESRGAN not found (set REALESRGAN_BIN)')
   const outPath = join(parentDir, 'sr.png')
   const args = [
     '-i', inputPath, '-o', outPath,
@@ -91,11 +83,10 @@ async function superResolve(inputPath, parentDir) {
     }
   }
   // 超分后仍偏小则补放大到引擎需要的分辨率
-  const info = await run('sips', ['-g', 'pixelHeight', outPath])
-  const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+  const { h } = await imageSize(outPath)
   if (h > 0 && h < 2800) {
     const upPath = join(parentDir, 'sr-up.png')
-    await run('sips', ['-s', 'format', 'png', '--resampleHeight', '2800', outPath, '--out', upPath])
+    await resizeToPng(outPath, upPath, 2800)
     return upPath
   }
   return outPath
@@ -112,9 +103,7 @@ async function handleOmr(bytes, fileName) {
     // 栅格图片：小图（<1000px）AI 超分优先——比 bicubic 放大更能恢复谱线边缘
     let firstPath = originalPath
     if (isRaster) {
-      const info = await run('sips', ['-g', 'pixelHeight', '-g', 'pixelWidth', originalPath])
-      const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
-      const w = Number(info.match(/pixelWidth:\s*(\d+)/)?.[1] ?? 0)
+      const { w, h } = await imageSize(originalPath)
       if (h > 0 && h < 1000) {
         try {
           firstPath = await superResolve(originalPath, dir)
@@ -130,11 +119,7 @@ async function handleOmr(bytes, fileName) {
           target = Math.floor(h * Math.sqrt(MAX_PIXELS / (w * h)))
         }
         const pngPath = join(dir, 'input-hq.png')
-        await run('sips', [
-          '-s', 'format', 'png',
-          '--resampleHeight', String(target),
-          originalPath, '--out', pngPath,
-        ])
+        await resizeToPng(originalPath, pngPath, target)
         firstPath = pngPath
       }
     }
@@ -152,8 +137,7 @@ async function handleOmr(bytes, fileName) {
     // 首轮失败或结果可疑（且是栅格图、原始尺寸在超分可救范围）→ AI 超分辨率后重试
     const srEligible = isRaster && (failed || (song !== null && isLowQuality(song)))
     if (srEligible) {
-      const info = await run('sips', ['-g', 'pixelHeight', originalPath])
-      const h = Number(info.match(/pixelHeight:\s*(\d+)/)?.[1] ?? 0)
+      const { h } = await imageSize(originalPath)
       if (h > 0 && h < 2200) {
         const srPath = await superResolve(originalPath, dir)
         try {
@@ -212,6 +196,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`OMR sidecard: http://localhost:${PORT}`)
-  console.log(`Audiveris: ${AUDIVERIS}`)
-  console.log(`Real-ESRGAN: ${REALESRGAN}`)
+  console.log(`Audiveris: ${AUDIVERIS ?? '未找到（请安装或设置 AUDIVERIS_BIN）'}`)
+  console.log(`Real-ESRGAN: ${REALESRGAN ?? '未找到（超分救援不可用）'}`)
 })

@@ -1,0 +1,68 @@
+name: Build Windows
+
+# 在 Windows 云主机上原生打包（无需本地 wine/Windows 机器）
+# 手动触发：Actions → Build Windows → Run workflow
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Audiveris (MSI 管理式解包)
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/Audiveris/audiveris/releases/download/5.11.0/Audiveris-5.11.0-windowsConsole-x86_64.msi'
+          Invoke-WebRequest -Uri $url -OutFile audiveris.msi
+          Start-Process msiexec.exe -ArgumentList "/a `"$PWD\audiveris.msi`" /qn TARGETDIR=`"$PWD\audiveris-extract`"" -Wait
+          $exe = Get-ChildItem -Path audiveris-extract -Recurse -Filter Audiveris.exe | Select-Object -First 1
+          if (-not $exe) { throw 'Audiveris.exe not found in extracted MSI' }
+          New-Item -ItemType Directory -Force -Path engine-locals-win | Out-Null
+          Copy-Item $exe.Directory.FullName engine-locals-win/Audiveris -Recurse -Force
+          Write-Host "Audiveris prepared: $($exe.FullName)"
+
+      - name: Prepare Real-ESRGAN (Windows 便携包)
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip'
+          Invoke-WebRequest -Uri $url -OutFile realesrgan.zip
+          Expand-Archive realesrgan.zip -DestinationPath realesrgan-extract -Force
+          $exe = Get-ChildItem -Path realesrgan-extract -Recurse -Filter realesrgan-ncnn-vulkan.exe | Select-Object -First 1
+          if (-not $exe) { throw 'realesrgan-ncnn-vulkan.exe not found' }
+          New-Item -ItemType Directory -Force -Path engine-locals-win/realesrgan | Out-Null
+          Copy-Item (Join-Path $exe.Directory.FullName '*') engine-locals-win/realesrgan -Recurse -Force
+
+      - name: Prepare default config (无密钥)
+        shell: pwsh
+        run: |
+          '{}' | Out-File -Encoding utf8 engine-locals-win/default-config.json
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Package Windows installer
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            release/*.exe
+            release/*.blockmap
+          retention-days: 14

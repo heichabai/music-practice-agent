@@ -12,7 +12,9 @@
     "omr": "node scripts/omr-server.mjs",
     "desktop:dev": "npm run build && electron .",
     "desktop:prepare": "node scripts/prepare-desktop.mjs",
-    "desktop:build": "npm run desktop:prepare && npm run build && electron-builder --mac --arm64"
+    "desktop:prepare:win": "node scripts/prepare-desktop.mjs --platform=win",
+    "desktop:build": "npm run desktop:prepare && npm run build && electron-builder --mac --arm64",
+    "desktop:build:win": "npm run desktop:prepare:win && npm run build && electron-builder --win --x64"
   },
   "build": {
     "appId": "com.heichabai.pianocoach",
@@ -24,21 +26,9 @@
       "dist/**",
       "electron/**",
       "scripts/musicxml.mjs",
+      "scripts/native-tools.mjs",
+      "scripts/engines.mjs",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "engine-locals/Audiveris.app",
-        "to": "engine/Audiveris.app"
-      },
-      {
-        "from": "engine-locals/realesrgan",
-        "to": "engine/realesrgan"
-      },
-      {
-        "from": "engine-locals/default-config.json",
-        "to": "default-config.json"
-      }
     ],
     "mac": {
       "target": [
@@ -50,7 +40,58 @@
         }
       ],
       "category": "public.app-category.music",
-      "icon": "build-assets/icon.icns"
+      "icon": "build-assets/icon.icns",
+      "extraResources": [
+        {
+          "from": "engine-locals/Audiveris.app",
+          "to": "engine/Audiveris.app"
+        },
+        {
+          "from": "engine-locals/realesrgan",
+          "to": "engine/realesrgan"
+        },
+        {
+          "from": "engine-locals/default-config.json",
+          "to": "default-config.json"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build-assets/icon.ico",
+      "extraResources": [
+        {
+          "from": "engine-locals-win/Audiveris",
+          "to": "engine/Audiveris"
+        },
+        {
+          "from": "engine-locals-win/realesrgan",
+          "to": "engine/realesrgan"
+        },
+        {
+          "from": "engine-locals-win/default-config.json",
+          "to": "default-config.json"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "琴键陪练"
     }
   },
   "dependencies": {
