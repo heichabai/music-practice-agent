@@ -252,12 +252,13 @@ export default function App() {
   const freePlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const videoRecorder = useVideoRecorder(freePlayCanvasRef)
   const freePlayLayout = useMemo(() => new KeyboardLayout(36, 95), [])
-  // 正在发声的音 = 按住的键 ∪ 踏板挂起的音（升序），供音名/和弦信息条使用
+  // 正在发声的音 = 按住的键 ∪ 踏板挂起的音（升序），供琴键音名与和弦信息条使用
   const soundingMidis = useMemo(
     () =>
       Array.from(new Set([...pressedSet, ...heldPedalNotes])).sort((a, b) => a - b),
     [pressedSet, heldPedalNotes],
   )
+  const soundingSet = useMemo(() => new Set(soundingMidis), [soundingMidis])
 
   const toggleMic = useCallback(async () => {
     if (micEnabled) {
@@ -749,6 +750,7 @@ export default function App() {
               wrong={null}
               onNoteOn={noteOn}
               onNoteOff={noteOff}
+              labelSet={soundingSet}
             />
           </div>
         </div>

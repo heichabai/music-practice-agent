@@ -14,6 +14,8 @@ interface Props {
   /** 点击/触摸琴键触发 */
   onNoteOn?: (midi: number) => void
   onNoteOff?: (midi: number) => void
+  /** 正在发声的音：直接在琴键上显示音名（含踏板挂起音） */
+  labelSet?: Set<number>
 }
 
 /**
@@ -22,7 +24,7 @@ interface Props {
  * - 黑键：深黑渐变 + 顶部棱线高光；按下微降
  * - 目标音：按音高柔光呼吸（target-pulse）；错音红闪；C 音名标注
  */
-export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, height, onNoteOn, onNoteOff }: Props) {
+export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, height, onNoteOn, onNoteOff, labelSet }: Props) {
   const HEIGHT_WHITE = height ?? 118
   const HEIGHT_BLACK = Math.round(HEIGHT_WHITE * 0.627)
   const midis: number[] = []
@@ -52,6 +54,7 @@ export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, hei
         const isPressed = pressedSet.has(m)
         const isTarget = targetSet.has(m)
         const isWrong = wrong !== null && wrong.midi === m
+        const showName = labelSet?.has(m) ?? false
 
         let bg: string
         if (isWrong) {
@@ -113,13 +116,28 @@ export function PianoKeyboard({ layout, width, pressedSet, targetSet, wrong, hei
                 }}
               />
             )}
-            {!black && m % 12 === 0 && (
+            {showName ? (
               <span
-                className="absolute inset-x-0 bottom-1.5 text-center text-[10px] font-medium tabular-nums"
-                style={{ color: labelColor }}
+                className={`pointer-events-none absolute inset-x-0 bottom-1.5 text-center font-mono font-semibold tabular-nums ${
+                  black ? 'text-[9px]' : 'text-[11px]'
+                } ${isPressed ? '' : 'opacity-70'}`}
+                style={{
+                  color: black ? noteRgba(m, 0.95) : 'rgba(15,23,42,0.92)',
+                  textShadow: black ? `0 0 6px ${noteRgba(m, 0.5)}` : undefined,
+                }}
               >
                 {noteName(m)}
               </span>
+            ) : (
+              !black &&
+              m % 12 === 0 && (
+                <span
+                  className="absolute inset-x-0 bottom-1.5 text-center text-[10px] font-medium tabular-nums"
+                  style={{ color: labelColor }}
+                >
+                  {noteName(m)}
+                </span>
+              )
             )}
           </div>
         )
