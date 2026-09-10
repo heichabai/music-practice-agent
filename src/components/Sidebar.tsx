@@ -7,7 +7,7 @@ import {
   type GamificationState,
 } from '../game/gamification'
 
-export type NavKey = 'learn' | 'songs' | 'freeplay' | 'import'
+export type NavKey = 'learn' | 'songs' | 'freeplay' | 'import' | 'progress'
 
 interface Props {
   /** null = 当前页面不属于任何导航项（如报告页） */
@@ -24,6 +24,7 @@ const NAV: Array<{ key: NavKey; icon: string; label: string; desc: string }> = [
   { key: 'songs', icon: '🎵', label: '曲库', desc: '内置与导入曲目' },
   { key: 'freeplay', icon: '🎹', label: '自由弹奏', desc: '无对错纯演奏' },
   { key: 'import', icon: '📥', label: '导入乐谱', desc: 'OMR / MIDI' },
+  { key: 'progress', icon: '🏆', label: '成长记录', desc: '等级与成就' },
 ]
 
 /** 左侧固定导航：品牌 + 页面切换 + 底部游戏化状态栏（深色演奏厅骨架） */

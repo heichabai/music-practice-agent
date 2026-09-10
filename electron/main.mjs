@@ -287,12 +287,25 @@ async function main() {
   app.commandLine.appendSwitch('enable-features', 'WebMIDI')
 
   const server = createServer()
-  const port = Number(process.env.ELECTRON_APP_PORT ?? 0)
-  await new Promise(resolve => {
-    server.listen(port, '127.0.0.1', resolve)
-  })
+  // 固定端口：保证每次启动 origin 一致，localStorage（课程进度/成就）才能持久
+  // 端口被占用时退回随机端口（此时进度会重置，属罕见情况）
+  const preferredPort = Number(process.env.ELECTRON_APP_PORT ?? 47823)
+  const listen = port =>
+    new Promise((resolve, reject) => {
+      const onError = err => reject(err)
+      server.once('error', onError)
+      server.listen(port, '127.0.0.1', () => {
+        server.off('error', onError)
+        resolve()
+      })
+    })
+  try {
+    await listen(preferredPort)
+  } catch {
+    await listen(0)
+  }
   const address = server.address()
-  const actualPort = typeof address === 'object' && address !== null ? address.port : port
+  const actualPort = typeof address === 'object' && address !== null ? address.port : preferredPort
   console.log(`[desktop] 服务就绪: http://127.0.0.1:${actualPort}`)
   console.log(`[desktop] Audiveris: ${AUDIVERIS ?? '未找到（请安装或设置 AUDIVERIS_BIN）'}`)
   console.log(`[desktop] Real-ESRGAN: ${REALESRGAN ?? '未找到（超分救援不可用）'}`)

@@ -6,7 +6,7 @@ import { ReportScreen } from './components/ReportScreen'
 import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
-import { PrimaryButton } from './components/ui/Button'
+import { PrimaryButton, GhostButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -35,13 +35,18 @@ import { AchievementToast, type AchievementToastData } from './components/Achiev
 import { AdaptiveIndicator } from './components/AdaptiveIndicator'
 import { FreePlayCanvas } from './components/FreePlayCanvas'
 import { FreePlayInfoBar } from './components/FreePlayInfoBar'
+import { ProgressScreen } from './components/ProgressScreen'
+import { playUiClick } from './audio/uiSound'
 import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete, getTutorialProgress, isDevMode, setDevMode } from './storage/tutorialStore'
 import { LessonScreen } from './components/tutorial/LessonScreen'
 import { Sidebar, type NavKey } from './components/Sidebar'
 
-type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay'
+type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay' | 'progress'
+
+/** 允许发声/响应弹奏的页面 */
+const PLAY_SCREENS: Screen[] = ['play', 'lesson', 'freeplay']
 
 // 电脑键盘 → midi
 // 高八度（A 行）：白键 A S D F G H J K L ; '，黑键 W E T Y U O
@@ -134,6 +139,8 @@ export default function App() {
 
   const noteOn = useCallback(
     (midi: number) => {
+      // 仅在弹奏相关页面响应（其余页面接 MIDI 键盘不发声、不触发逻辑）
+      if (!PLAY_SCREENS.includes(screen)) return
       window.dispatchEvent(new CustomEvent('app-note', { detail: { midi, on: true } }))
       setPressedSet(prev => {
         if (prev.has(midi)) return prev
@@ -178,7 +185,7 @@ export default function App() {
         wrongTimerRef.current = window.setTimeout(() => setWrong(null), 220)
       }
     },
-    [synthOn],
+    [synthOn, screen],
   )
 
   const applyGamification = useCallback(
@@ -422,15 +429,47 @@ export default function App() {
     }
   }, [screen, noteOn, noteOff])
 
+  // 全局按钮点击音效（捕获阶段，覆盖所有 button/[role=button]）
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null
+      if (el?.closest('button, [role="button"]')) playUiClick()
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [])
+
   const accuracy =
     hud && hud.hits + hud.errors > 0 ? hud.hits / (hud.hits + hud.errors) : 1
 
+  // 课后练习一完成（进入报告页）就自动记课并发放奖励，不依赖用户点哪个按钮
+  useEffect(() => {
+    if (screen !== 'report' || fromLessonId === null) return
+    const lesson = LESSONS.find(l => l.id === fromLessonId)
+    if (!lesson) return
+    const already = getTutorialProgress().completed.includes(lesson.id)
+    markLessonComplete(lesson.id)
+    if (!already) {
+      applyGamification(gamifyLessonComplete(gamificationRef.current, lesson.order))
+    }
+  }, [screen, fromLessonId, applyGamification])
+
   /** 带侧栏的页面；演奏/课程/自由弹奏为全屏沉浸页 */
   const withSidebar =
-    screen === 'select' || screen === 'import' || screen === 'editor' || screen === 'report'
+    screen === 'select' ||
+    screen === 'import' ||
+    screen === 'editor' ||
+    screen === 'report' ||
+    screen === 'progress'
 
   const sidebarActive: NavKey | null =
-    screen === 'select' ? homeTab : screen === 'import' || screen === 'editor' ? 'import' : null
+    screen === 'select'
+      ? homeTab
+      : screen === 'import' || screen === 'editor'
+        ? 'import'
+        : screen === 'progress'
+          ? 'progress'
+          : null
 
   const handleNav = async (key: NavKey) => {
     if (key === 'learn' || key === 'songs') {
@@ -438,6 +477,8 @@ export default function App() {
       setScreen('select')
     } else if (key === 'import') {
       setScreen('import')
+    } else if (key === 'progress') {
+      setScreen('progress')
     } else {
       setFreePlayNoteCount(0)
       try {
@@ -666,6 +707,7 @@ export default function App() {
         <div className="screen-enter h-full overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl px-6 py-8">
             <LessonScreen
+              key={activeLesson.id}
               lesson={activeLesson}
               nextLesson={LESSONS[activeLesson.order] ?? null}
               onBack={() => setScreen('select')}
@@ -673,6 +715,15 @@ export default function App() {
               onNextLesson={lesson => {
                 setActiveLesson(lesson)
                 window.scrollTo({ top: 0 })
+              }}
+              onComplete={() => {
+                const already = getTutorialProgress().completed.includes(activeLesson.id)
+                markLessonComplete(activeLesson.id)
+                if (!already) {
+                  applyGamification(
+                    gamifyLessonComplete(gamificationRef.current, activeLesson.order),
+                  )
+                }
               }}
             />
           </div>
@@ -797,6 +848,12 @@ export default function App() {
         </div>
       )}
 
+      {screen === 'progress' && (
+        <div className="screen-enter">
+          <ProgressScreen gamification={gamification} />
+        </div>
+      )}
+
       {screen === 'report' && report && (
         <div className="screen-enter mx-auto w-full max-w-4xl px-8 py-8">
           {fromLessonId !== null && (
@@ -804,29 +861,40 @@ export default function App() {
               {(() => {
                 const lesson = LESSONS.find(l => l.id === fromLessonId) ?? null
                 const next = lesson !== null ? LESSONS[lesson.order] ?? null : null
+                const finishLesson = () => {
+                  if (lesson === null) return
+                  const already = getTutorialProgress().completed.includes(lesson.id)
+                  markLessonComplete(lesson.id)
+                  if (!already) {
+                    applyGamification(
+                      gamifyLessonComplete(gamificationRef.current, lesson.order),
+                    )
+                  }
+                }
+                const backToLesson = () => {
+                  finishLesson()
+                  if (lesson !== null) setActiveLesson(lesson)
+                  setFromLessonId(null)
+                  setScreen('lesson')
+                }
                 return (
                   <>
                     <span className="rounded-full bg-hit/15 px-4 py-2 text-body text-hit">
                       ✓ {lesson?.title ?? '课程'} 练习完成
                     </span>
-                    <PrimaryButton
-                      onClick={() => {
-                        if (lesson !== null) {
-                          markLessonComplete(lesson.id)
-                          applyGamification(gamifyLessonComplete(gamificationRef.current, lesson.order))
-                        }
-                        if (next !== null) {
+                    <GhostButton onClick={backToLesson}>回到本课</GhostButton>
+                    {next !== null && (
+                      <PrimaryButton
+                        onClick={() => {
+                          finishLesson()
                           setActiveLesson(next)
                           setFromLessonId(null)
                           setScreen('lesson')
-                        } else {
-                          setFromLessonId(null)
-                          setScreen('select')
-                        }
-                      }}
-                    >
-                      {next !== null ? `继续：第 ${next.order} 课 ${next.title}` : '返回课程'}
-                    </PrimaryButton>
+                        }}
+                      >
+                        继续：第 {next.order} 课 {next.title}
+                      </PrimaryButton>
+                    )}
                   </>
                 )
               })()}
@@ -834,8 +902,14 @@ export default function App() {
           )}
           <ReportScreen
             report={report}
-            onRetry={() => void startSong(song.id, mode)}
-            onSelect={() => setScreen('select')}
+            onRetry={() => {
+              if (fromLessonId !== null) void startLessonPractice(song, fromLessonId)
+              else void startSong(song.id, mode)
+            }}
+            onSelect={() => {
+              setFromLessonId(null)
+              setScreen('select')
+            }}
           />
         </div>
       )}

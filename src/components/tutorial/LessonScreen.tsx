@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { Lesson, LessonQuiz, DiagramKind } from '../../game/lessons'
 import { SONGS } from '../../game/songs'
-import { markLessonComplete } from '../../storage/tutorialStore'
 import { askTutor } from '../../ai/tutorChat'
 import type { Song } from '../../types'
 import { PrimaryButton, GhostButton } from '../ui/Button'
@@ -35,6 +34,8 @@ interface Props {
   onBack: () => void
   onPractice: (song: Song, lessonId: string) => void
   onNextLesson: (lesson: Lesson) => void
+  /** 完成本课（去重发奖在 App 层处理） */
+  onComplete: () => void
 }
 
 function Diagram({ kind }: { kind: DiagramKind }) {
@@ -157,7 +158,7 @@ function TutorBox({ lesson }: { lesson: Lesson }) {
   )
 }
 
-export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLesson }: Props) {
+export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLesson, onComplete }: Props) {
   const [stepIdx, setStepIdx] = useState(0)
   const [taskDone, setTaskDone] = useState(false)
   const [quizOk, setQuizOk] = useState(false)
@@ -170,11 +171,22 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
   const practiceSong =
     lesson.practiceSong ?? SONGS.find(s => s.id === lesson.practiceSongId) ?? null
 
+  const complete = () => {
+    onComplete()
+    setCompletedNow(true)
+  }
+
+  /** 返回课程列表：已完成全部任务则自动记为完成 */
+  const handleBack = () => {
+    if (canComplete && !completedNow) complete()
+    onBack()
+  }
+
   return (
     <div className="w-full">
       {/* 顶栏：返回 + 课号 + 分段进度条 */}
       <div className="flex items-center gap-4">
-        <GhostButton onClick={onBack} className="px-3 py-1 text-xs">
+        <GhostButton onClick={handleBack} className="px-3 py-1 text-xs">
           ‹ 课程
         </GhostButton>
         <span className="text-micro font-medium uppercase tracking-[0.18em] text-muted">
@@ -257,10 +269,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
               </p>
             ) : (
               <GhostButton
-                onClick={() => {
-                  markLessonComplete(lesson.id)
-                  setCompletedNow(true)
-                }}
+                onClick={complete}
                 className={`w-full justify-center ${practiceSong !== null ? 'mt-2.5' : ''} ${canComplete ? '' : 'pointer-events-none opacity-40'}`}
               >
                 {canComplete ? '完成本课' : lesson.task !== undefined && !taskDone ? '先完成动手任务' : '先通过测验'}
@@ -276,10 +285,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
             <button
               onClick={() => {
                 // 点击下一课 = 自动视为完成本课
-                if (!completedNow) {
-                  markLessonComplete(lesson.id)
-                  setCompletedNow(true)
-                }
+                if (!completedNow) complete()
                 onNextLesson(nextLesson)
               }}
               className="sheen group flex w-full items-center gap-4 rounded-xl border border-accent/40 bg-accent-dim/30 px-4 py-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/70"
