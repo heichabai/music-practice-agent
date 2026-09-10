@@ -21,6 +21,16 @@
 - 谱纸五线谱抽屉（abcjs 生成、时值比例间距、逐拍跨声部对齐、当前音金色高亮、跟随滚动、可切原谱图）
 - 命中粒子特效 + 金色闪光环 + 舞台聚光晕影
 
+### 自由弹奏（实时音名 + 和弦识别 + 延音踏板）
+
+- **音名直接显示在琴键上**：正在发声的音（含踏板挂起音）在对应琴键上显示音名与八度
+- **和弦实时识别**：任意组合尽力推断，覆盖三和弦/挂留/六和弦/七/九/十一/十三和弦与变化属和弦
+  - 严谨省略记谱：不完整和弦标注为 `C(no5)`、`C13(no9,no11)`、`Cmaj7(no5)`
+  - 转位自动斜杠标记（`C/E`）、和弦外音标「经过音」、两音组合给音程提示
+- **MIDI 延音踏板（CC64）**：踩下后松键不断音，抬踏板统一释放；琴键指示灯与音块视觉同步联动
+- **上升音块**：时间映射几何（顶边=开始时刻、底边=结束时刻），同速上升永不互相覆盖；踏板踩下时松键音块保持
+- 演奏视频录制（画布 + 音频合成 webm 一键下载）
+
 ### 测评（会话报告 + AI 复盘）
 
 - 命中率、节奏偏差仪表（抢拍/拖拍）、时值保持、问题音符 TOP5
@@ -53,7 +63,7 @@
 - Salamander 真钢琴采样音色（自托管 wav，低延迟）
 - Inter 字体（拉丁/数字）+ 苹方（中文）
 - `prefers-reduced-motion` 降级、键盘焦点环、全局 ErrorBoundary
-- 双输入：Web MIDI 真键盘（热插拔检测）+ 电脑键盘兜底（Z/A 双八度）
+- 双输入：Web MIDI 真键盘（热插拔检测 + CC64 延音踏板）+ 电脑键盘兜底（Z/A 双八度）；Electron 版已开启 WebMIDI 特性
 
 ## 快速开始
 
@@ -140,18 +150,20 @@ src/
 │   ├── PianoRollEditor.tsx      # 钢琴卷帘校对编辑器
 │   ├── ImportScreen.tsx         # 乐谱导入（本地 OMR / MIDI）
 │   ├── FallingNotes.tsx         # 下落音符画布 + 粒子特效（动态高度）
-│   ├── FreePlayCanvas.tsx       # 自由弹奏画布（音块上升 + 粒子）
-│   ├── PianoKeyboard.tsx        # 拟真琴键可视化（高度随视口缩放）
+│   ├── FreePlayCanvas.tsx       # 自由弹奏画布（时间映射音块 + 踏板联动 + 粒子）
+│   ├── FreePlayInfoBar.tsx      # 自由弹奏信息条（右侧和弦推断显示）
+│   ├── PianoKeyboard.tsx        # 拟真琴键可视化（发声键直接显示音名）
 │   └── ReportScreen.tsx         # 报告页（含 AI 教练面板）
 ├── game/                        # 判定引擎（纯逻辑）
 │   ├── engine.ts                # 双模式判定 + 节奏/时值
 │   ├── report.ts                # 会话报告生成
 │   ├── lessons.ts               # 26 课五单元课程数据
+│   ├── chords.ts                # 和弦识别（含省略音严谨记谱）
 │   ├── abcNotation.ts           # Song → ABC 五线谱转换
 │   ├── keyboard.ts              # 键位几何布局
 │   ├── songs.ts                 # 内置曲库
 │   └── midiImport.ts            # MIDI 文件解析
-├── midi/useMidiInput.ts         # Web MIDI 接入
+├── midi/useMidiInput.ts         # Web MIDI 接入（音符 + CC64 延音踏板）
 ├── storage/                     # 持久化
 │   ├── sessionStore.ts          # 练习记录 + 跨次统计
 │   ├── songStore.ts             # 自定义曲库（含原谱图）
@@ -185,11 +197,12 @@ docs/ui-design.md                # UI 设计规范
 
 - [x] 零基础 26 课五单元互动课程 + 五线谱学习路径 + AI 答疑
 - [x] 双模式练习 + 全屏沉浸演奏页 + 谱纸五线谱抽屉
+- [x] 自由弹奏：琴键音名显示 + 和弦实时识别（严谨省略记谱）+ 延音踏板联动
 - [x] 本地 OMR + MIDI 双通道乐谱导入（超分/缩图预处理 + 质量把关）
 - [x] 钢琴卷帘校对编辑器
 - [x] AI 教练复盘 + 练习计划 + 跨次记忆
 - [x] Salamander 真钢琴采样 + 低延迟优化
-- [x] macOS 桌面应用（Electron + 内置引擎）
+- [x] macOS 桌面应用（Electron + 内置引擎 + Web MIDI 已启用）
 - [x] 深色演奏厅设计系统（近黑舞台/琥珀金/左侧栏/全屏布局）
 
 ## 路线图
