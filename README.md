@@ -51,9 +51,11 @@
 
 ### 桌面应用
 
-- macOS Electron 桌面版（`npm run desktop:build` → .dmg）
+- macOS（.dmg）与 Windows（NSIS 安装包 / 免安装便携版）双平台
 - 内置全部引擎（Audiveris+JRE / Real-ESRGAN / 钢琴采样），双击即用无需终端
+- 跨平台引擎解析：打包资源 → 项目引擎目录 → 系统安装位置，逐级自动探测
 - 自定义应用图标，密钥存本地配置文件
+- Windows 构建支持 GitHub Actions 云端原生打包（无需本地 Windows 环境）
 
 ### 体验细节（深色演奏厅设计系统）
 
@@ -85,11 +87,31 @@ npm run dev   # 前端开发服务器（OMR 识谱服务随首次识别自动启
 
 ### 桌面版
 
+**macOS**
+
 ```bash
 npm run desktop:build   # 打包 .dmg（自动收集引擎资源）
 ```
 
 产物在 `release/琴键陪练-0.1.0-arm64.dmg`，拖入 Applications 双击即用。
+
+**Windows**
+
+```bash
+# 方式一：在 Windows 机器上（或装了 wine 的环境）
+npm run desktop:build:win   # 打包 .exe（NSIS 安装包 + 便携版）
+
+# 方式二：推送到 GitHub，Actions → Build Windows → Run workflow
+# 云端自动下载引擎并在 Windows 环境原生打包，产物在 Artifacts
+```
+
+产物在 `release/`：`琴键陪练 Setup 0.1.0.exe`（安装版）与 `琴键陪练 0.1.0.exe`（免安装便携版），均内置 OMR 引擎。
+
+Windows 引擎准备说明（`desktop:build:win` 首次运行前）：
+
+- Audiveris：安装[官方 MSI](https://github.com/Audiveris/audiveris/releases)后运行 `npm run desktop:prepare:win` 自动收集；或手动放到 `engine-locals-win/Audiveris/`（内含 `Audiveris.exe`）
+- Real-ESRGAN：从 [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN/releases) 下载 windows 包解压到 `engine-locals-win/realesrgan/`
+- 也可用环境变量覆盖路径：`AUDIVERIS_BIN` / `REALESRGAN_BIN` / `REALESRGAN_MODELS`
 
 ### 没有 MIDI 键盘？
 
@@ -174,11 +196,15 @@ electron/                        # 桌面应用主进程
 └── config.mjs                   # 密钥配置（dev: .env / pkg: config.json）
 scripts/                         # 开发工具
 ├── omr-server.mjs               # OMR sidecar（网页版用）
+├── engines.mjs                  # 跨平台引擎路径解析（Audiveris/Real-ESRGAN）
+├── native-tools.mjs             # 跨平台图片缩放/解压（sips/PowerShell/ImageMagick）
+├── prepare-desktop.mjs          # 桌面打包资源收集（--platform=win|mac）
 ├── musicxml.mjs                 # MusicXML → Song 解析器
 ├── gen-tutorial-images.mjs      # AI 生图（教学配图）
 ├── tutorial-e2e.mjs             # 教程端到端测试
 ├── score-e2e.mjs                # 乐谱条端到端测试
 └── upload-e2e.mjs               # OMR 上传端到端测试
+.github/workflows/build-windows.yml  # Windows 云端打包
 docs/ui-design.md                # UI 设计规范
 ```
 
@@ -191,6 +217,8 @@ docs/ui-design.md                # UI 设计规范
 | `npm run build` | 类型检查 + 生产构建 |
 | `npm run desktop:dev` | 桌面版开发运行 |
 | `npm run desktop:build` | 打包 macOS .dmg |
+| `npm run desktop:prepare:win` | 收集 Windows 引擎资源 |
+| `npm run desktop:build:win` | 打包 Windows .exe（安装包 + 便携版） |
 | `npm run demo:coach` | AI 教练冒烟测试（真实调用） |
 
 ## 已实现
@@ -202,7 +230,7 @@ docs/ui-design.md                # UI 设计规范
 - [x] 钢琴卷帘校对编辑器
 - [x] AI 教练复盘 + 练习计划 + 跨次记忆
 - [x] Salamander 真钢琴采样 + 低延迟优化
-- [x] macOS 桌面应用（Electron + 内置引擎 + Web MIDI 已启用）
+- [x] macOS / Windows 桌面应用（Electron + 内置引擎 + Web MIDI 已启用）
 - [x] 深色演奏厅设计系统（近黑舞台/琥珀金/左侧栏/全屏布局）
 
 ## 路线图
