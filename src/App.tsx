@@ -105,6 +105,8 @@ export default function App() {
   const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
   const [gamification, setGamification] = useState<GamificationState>(() => loadGamification())
   const [achievementQueue, setAchievementQueue] = useState<AchievementToastData[]>([])
+  // 始终指向最新游戏化状态：事件回调（依赖数组精简）里必须读 ref，否则会拿旧状态重复解锁成就
+  const gamificationRef = useRef(gamification)
   const [adaptiveDecision, setAdaptiveDecision] = useState<AdaptiveDecision | null>(null)
   const [micEnabled, setMicEnabled] = useState(false)
   const [freePlayNoteCount, setFreePlayNoteCount] = useState(0)
@@ -155,7 +157,7 @@ export default function App() {
       const result = engine.press(midi)
 
       if (result === 'hit') {
-        applyGamification(gamifyNoteHit(gamification, midi))
+        applyGamification(gamifyNoteHit(gamificationRef.current, midi))
         const decision = adaptiveRef.current?.onHit(midi, engine.songTime)
         if (decision) setAdaptiveDecision(decision)
       } else if (result === 'wrong') {
@@ -181,13 +183,17 @@ export default function App() {
 
   const applyGamification = useCallback(
     (update: { state: GamificationState; newlyUnlocked: Achievement[] }) => {
+      gamificationRef.current = update.state
       setGamification(update.state)
       saveGamification(update.state)
       if (update.newlyUnlocked.length > 0) {
-        setAchievementQueue(prev => [
-          ...prev,
-          ...update.newlyUnlocked.map(a => ({ id: a.id, name: a.name, description: a.description })),
-        ])
+        setAchievementQueue(prev => {
+          const queued = new Set(prev.map(a => a.id))
+          const fresh = update.newlyUnlocked
+            .filter(a => !queued.has(a.id))
+            .map(a => ({ id: a.id, name: a.name, description: a.description }))
+          return fresh.length > 0 ? [...prev, ...fresh] : prev
+        })
       }
     },
     [],
@@ -371,7 +377,7 @@ export default function App() {
             const r = buildReport(engine)
             saveSession(r)
             setReport(r)
-            const gUpdate = gamifySessionEnd(gamification, {
+            const gUpdate = gamifySessionEnd(gamificationRef.current, {
               notesHit: r.hits,
               errors: r.wrongPresses,
               misses: r.misses,
@@ -776,7 +782,7 @@ export default function App() {
             info={draft.info}
             onSave={song => {
               saveCustomSong(song, draft.source, draft.imageUrl)
-              applyGamification(gamifyImport(gamification))
+              applyGamification(gamifyImport(gamificationRef.current))
               setCustomSongs(listCustomSongs())
               setDraft(null)
               setScreen('select')
@@ -805,7 +811,7 @@ export default function App() {
                       onClick={() => {
                         if (lesson !== null) {
                           markLessonComplete(lesson.id)
-                          applyGamification(gamifyLessonComplete(gamification, lesson.order))
+                          applyGamification(gamifyLessonComplete(gamificationRef.current, lesson.order))
                         }
                         if (next !== null) {
                           setActiveLesson(next)
