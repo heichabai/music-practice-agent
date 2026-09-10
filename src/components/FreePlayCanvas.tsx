@@ -163,15 +163,31 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
 
       // 上升音块
       const notes = notesRef.current
+
+      // 同键防重叠：后按的音块顶边不超过前一个仍在屏内的音块底边，
+      // 否则长按的音块越涨越高，会把先前短音的块盖住
+      const topClamp = new Map<number, number>()
+      const prevBottom = new Map<number, number>()
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i]
+        const ageMs = now - n.startMs
+        const bottomY = hitY - (ageMs / 1000) * RISE_SPEED
+        const heldMs = n.endMs !== null ? n.endMs - n.startMs : now - n.startMs
+        const naturalTop = bottomY - Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
+        const pb = prevBottom.get(n.midi)
+        const topY = pb !== undefined && pb > 0 && naturalTop < pb ? pb : naturalTop
+        topClamp.set(i, topY)
+        prevBottom.set(n.midi, bottomY)
+      }
+
       for (let i = notes.length - 1; i >= 0; i--) {
         const n = notes[i]
-        const heldMs = n.endMs !== null ? n.endMs - n.startMs : now - n.startMs
         const ageMs = now - n.startMs
 
         // 底边位置
         const bottomY = hitY - (ageMs / 1000) * RISE_SPEED
-        const heightPx = Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
-        const topY = bottomY - heightPx
+        const topY = topClamp.get(i) ?? bottomY - MIN_BLOCK_H
+        const heightPx = Math.max(2, bottomY - topY)
 
         if (topY > height + 10 || bottomY < -20) {
           if (n.endMs !== null && bottomY < -40) notes.splice(i, 1)

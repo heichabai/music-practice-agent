@@ -47,6 +47,28 @@ const TEMPLATES: Template[] = [
   { intervals: [0, 2, 3, 7], symbol: 'm(add9)', cn: '小加九和弦', bias: 24 },
   { intervals: [0, 3, 6, 10], symbol: 'm7b5', cn: '半减七和弦', bias: 22 },
   { intervals: [0, 3, 6, 9], symbol: 'dim7', cn: '减七和弦', bias: 20 },
+  // 挂留七和弦
+  { intervals: [0, 5, 7, 10], symbol: '7sus4', cn: '属七挂四和弦', bias: 35 },
+  // 九和弦
+  { intervals: [0, 2, 4, 7, 11], symbol: 'maj9', cn: '大九和弦', bias: 52 },
+  { intervals: [0, 2, 4, 7, 10], symbol: '9', cn: '属九和弦', bias: 50 },
+  { intervals: [0, 2, 3, 7, 10], symbol: 'm9', cn: '小九和弦', bias: 48 },
+  { intervals: [0, 2, 4, 7, 9], symbol: '6/9', cn: '六九和弦', bias: 25 },
+  { intervals: [0, 2, 3, 7, 9], symbol: 'm6/9', cn: '小六九和弦', bias: 23 },
+  { intervals: [0, 2, 5, 7, 10], symbol: '9sus4', cn: '属九挂四和弦', bias: 20 },
+  // 十一和弦
+  { intervals: [0, 2, 4, 5, 7, 11], symbol: 'maj11', cn: '大十一和弦', bias: 32 },
+  { intervals: [0, 2, 4, 5, 7, 10], symbol: '11', cn: '属十一和弦', bias: 30 },
+  { intervals: [0, 2, 3, 5, 7, 10], symbol: 'm11', cn: '小十一和弦', bias: 28 },
+  // 十三和弦
+  { intervals: [0, 2, 4, 7, 9, 11], symbol: 'maj13', cn: '大十三和弦', bias: 26 },
+  { intervals: [0, 2, 4, 7, 9, 10], symbol: '13', cn: '属十三和弦', bias: 24 },
+  { intervals: [0, 2, 3, 7, 9, 10], symbol: 'm13', cn: '小十三和弦', bias: 22 },
+  // 变化属和弦
+  { intervals: [0, 1, 4, 7, 10], symbol: '7b9', cn: '属七降九和弦', bias: 18 },
+  { intervals: [0, 3, 4, 7, 10], symbol: '7#9', cn: '属七升九和弦', bias: 17 },
+  { intervals: [0, 4, 6, 7, 10], symbol: '7#11', cn: '属七升十一和弦', bias: 16 },
+  { intervals: [0, 4, 6, 7, 11], symbol: 'maj7#11', cn: '大七升十一和弦', bias: 15 },
 ]
 
 export interface ChordResult {
