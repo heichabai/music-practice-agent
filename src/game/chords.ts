@@ -57,13 +57,13 @@ const TEMPLATES: Template[] = [
   { intervals: [0, 2, 3, 7, 9], symbol: 'm6/9', cn: '小六九和弦', bias: 23 },
   { intervals: [0, 2, 5, 7, 10], symbol: '9sus4', cn: '属九挂四和弦', bias: 20 },
   // 十一和弦
-  { intervals: [0, 2, 4, 5, 7, 11], symbol: 'maj11', cn: '大十一和弦', bias: 32 },
-  { intervals: [0, 2, 4, 5, 7, 10], symbol: '11', cn: '属十一和弦', bias: 30 },
-  { intervals: [0, 2, 3, 5, 7, 10], symbol: 'm11', cn: '小十一和弦', bias: 28 },
-  // 十三和弦
-  { intervals: [0, 2, 4, 7, 9, 11], symbol: 'maj13', cn: '大十三和弦', bias: 26 },
-  { intervals: [0, 2, 4, 7, 9, 10], symbol: '13', cn: '属十三和弦', bias: 24 },
-  { intervals: [0, 2, 3, 7, 9, 10], symbol: 'm13', cn: '小十三和弦', bias: 22 },
+  { intervals: [0, 2, 4, 5, 7, 11], symbol: 'maj11', cn: '大十一和弦', bias: 42 },
+  { intervals: [0, 2, 4, 5, 7, 10], symbol: '11', cn: '属十一和弦', bias: 40 },
+  { intervals: [0, 2, 3, 5, 7, 10], symbol: 'm11', cn: '小十一和弦', bias: 38 },
+  // 十三和弦（理论构成含 11 音）
+  { intervals: [0, 2, 4, 5, 7, 9, 11], symbol: 'maj13', cn: '大十三和弦', bias: 48 },
+  { intervals: [0, 2, 4, 5, 7, 9, 10], symbol: '13', cn: '属十三和弦', bias: 46 },
+  { intervals: [0, 2, 3, 5, 7, 9, 10], symbol: 'm13', cn: '小十三和弦', bias: 44 },
   // 变化属和弦
   { intervals: [0, 1, 4, 7, 10], symbol: '7b9', cn: '属七降九和弦', bias: 18 },
   { intervals: [0, 3, 4, 7, 10], symbol: '7#9', cn: '属七升九和弦', bias: 17 },
@@ -121,7 +121,7 @@ export function detectChord(midis: number[]): ChordResult | null {
       }
       if (contained === 0) continue
       const missing = tpl.intervals.length - contained
-      const rootBonus = root === bassPc ? 200 : 0
+      const rootBonus = root === bassPc ? 500 : 0
       const score =
         contained * 1000 - extra * 300 - missing * 450 + rootBonus + tpl.bias
       if (best === null || score > best.score) {

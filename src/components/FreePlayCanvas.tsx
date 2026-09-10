@@ -164,35 +164,25 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
       // 上升音块
       const notes = notesRef.current
 
-      // 同键防重叠：后按的音块顶边不超过前一个仍在屏内的音块底边，
-      // 否则长按的音块越涨越高，会把先前短音的块盖住
-      const topClamp = new Map<number, number>()
-      const prevBottom = new Map<number, number>()
-      for (let i = 0; i < notes.length; i++) {
-        const n = notes[i]
-        const ageMs = now - n.startMs
-        const bottomY = hitY - (ageMs / 1000) * RISE_SPEED
-        const heldMs = n.endMs !== null ? n.endMs - n.startMs : now - n.startMs
-        const naturalTop = bottomY - Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
-        const pb = prevBottom.get(n.midi)
-        const topY = pb !== undefined && pb > 0 && naturalTop < pb ? pb : naturalTop
-        topClamp.set(i, topY)
-        prevBottom.set(n.midi, bottomY)
-      }
-
+      // 清理已飘出屏幕的结束音
       for (let i = notes.length - 1; i >= 0; i--) {
         const n = notes[i]
+        if (n.endMs !== null) {
+          const bottomY = hitY - ((now - n.startMs) / 1000) * RISE_SPEED
+          if (bottomY < -40) notes.splice(i, 1)
+        }
+      }
+
+      const drawNote = (n: RisingNote) => {
+        const heldMs = n.endMs !== null ? n.endMs - n.startMs : now - n.startMs
         const ageMs = now - n.startMs
 
         // 底边位置
         const bottomY = hitY - (ageMs / 1000) * RISE_SPEED
-        const topY = topClamp.get(i) ?? bottomY - MIN_BLOCK_H
-        const heightPx = Math.max(2, bottomY - topY)
+        const heightPx = Math.max(MIN_BLOCK_H, (heldMs / 1000) * RISE_SPEED)
+        const topY = bottomY - heightPx
 
-        if (topY > height + 10 || bottomY < -20) {
-          if (n.endMs !== null && bottomY < -40) notes.splice(i, 1)
-          continue
-        }
+        if (topY > height + 10 || bottomY < -20) return
 
         const g = layout.geom(n.midi, width)
         const x = isBlack(n.midi) ? g.x : g.x + 2
@@ -208,7 +198,7 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
           ? 0.88
           : Math.max(0, 1 - Math.max(0, distFromLine - fadeStart) / (height * 0.4)) * 0.85
 
-        if (alpha <= 0.01) continue
+        if (alpha <= 0.01) return
 
         // 渐变填充
         const grad = ctx.createLinearGradient(x, topY, x, topY + heightPx)
@@ -233,7 +223,17 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
         }
         ctx.fill()
         ctx.shadowBlur = 0
+
+        // 细描边：重叠时各音块轮廓仍清晰可辨
+        ctx.strokeStyle = `rgba(10,12,18,${0.6 * alpha})`
+        ctx.lineWidth = 1
+        ctx.stroke()
       }
+
+      // 分两层绘制：按住的音在下层、已结束的音在上层，
+      // 这样长按的音块向上生长时不会盖住先前短音的块，两者各自完整
+      for (const n of notes) if (n.endMs === null) drawNote(n)
+      for (const n of notes) if (n.endMs !== null) drawNote(n)
 
       // 粒子
       if (!reduceMotion) {
