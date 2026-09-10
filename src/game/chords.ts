@@ -75,19 +75,70 @@ export interface ChordResult {
   /** 根音与最低音的音级（0-11） */
   rootPc: number
   bassPc: number
-  /** 记号，如 C / F#m7 / C/E（转位带斜杠） */
+  /** 记号，如 C / F#m7 / C(no5) / C/E（转位带斜杠） */
   symbol: string
   /** 中文全名，如 升F小七和弦 */
   fullCn: string
   /** 有和弦音没弹（不完整和弦） */
   incomplete: boolean
+  /** 缺失的和弦音级名，如 ['5'] / ['3','5'] */
+  missingDegrees: string[]
   /** 有和弦外的音（如旋律经过音） */
   hasExtra: boolean
   /** 两音组合时的音程小注 */
   intervalHint: string | null
 }
 
+/** 省略记号的排序权重：根音→三音→五音→七音→延伸音 */
+const DEGREE_ORDER: Record<string, number> = {
+  R: 0,
+  '3': 1,
+  '♯9': 1.5,
+  '5': 2,
+  '♭7': 3,
+  '7': 3,
+  '9': 4,
+  '♭9': 4.5,
+  '11': 5,
+  '♯11': 5.5,
+  '6': 6,
+  '13': 6,
+}
+
 const pcName = (pc: number) => PC_NAMES[((pc % 12) + 12) % 12]
+
+/** 和弦音级名（用于省略记号，如 no5 / no3 / no♭7） */
+function degreeLabel(tplSymbol: string, interval: number): string {
+  switch (interval) {
+    case 0:
+      return 'R'
+    case 1:
+      return '♭9'
+    case 2:
+      return tplSymbol.includes('sus2') ? '2' : '9'
+    case 3:
+      return tplSymbol.includes('#9') ? '♯9' : '3'
+    case 4:
+      return '3'
+    case 5:
+      return tplSymbol.includes('sus') ? '4' : '11'
+    case 6:
+      return tplSymbol.includes('#11') ? '♯11' : '5'
+    case 7:
+      return '5'
+    case 8:
+      return '5'
+    case 9:
+      if (tplSymbol.includes('dim7')) return '7'
+      return tplSymbol.includes('6') ? '6' : '13'
+    case 10:
+      return '7'
+    case 11:
+      return '7'
+    default:
+      return String(interval)
+  }
+}
 
 /**
  * 推断和弦。规则：覆盖更多实际按下的音级优先；和弦外的音与缺失的和弦音
@@ -133,10 +184,18 @@ export function detectChord(midis: number[]): ChordResult | null {
   if (best === null || best.contained < 2) return null
   const { root, tpl, extra, missing } = best
 
+  // 缺失的和弦音 → 严谨省略记号（如 no5 / no3 / no9,no11）
+  const playedRel = new Set(pcs.map(pc => (pc - root + 12) % 12))
+  const missingDegrees = tpl.intervals
+    .filter(i => !playedRel.has(i))
+    .map(i => degreeLabel(tpl.symbol, i))
+    .sort((a, b) => (DEGREE_ORDER[a] ?? 99) - (DEGREE_ORDER[b] ?? 99))
+
   // 转位：最低音不是根音时加斜杠
   const inversion = root !== bassPc
+  const omit = missingDegrees.length > 0 ? `(no${missingDegrees.join(',')})` : ''
   const symbol =
-    pcName(root) + tpl.symbol + (inversion ? '/' + pcName(bassPc) : '')
+    pcName(root) + tpl.symbol + omit + (inversion ? '/' + pcName(bassPc) : '')
 
   let intervalHint: string | null = null
   if (pcs.length === 2) {
@@ -150,6 +209,7 @@ export function detectChord(midis: number[]): ChordResult | null {
     symbol,
     fullCn: PC_NAMES_CN[root] + tpl.cn + (inversion ? '（转位）' : ''),
     incomplete: missing > 0,
+    missingDegrees,
     hasExtra: extra > 0,
     intervalHint,
   }

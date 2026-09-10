@@ -26,9 +26,6 @@ export function FreePlayInfoBar({ midis }: Props) {
             <span className="flex flex-col items-start leading-tight">
               <span className="text-caption text-secondary">{chord.fullCn}</span>
               <span className="flex gap-1 text-[10px]">
-                {chord.incomplete && (
-                  <span className="rounded bg-wrong/15 px-1 text-wrong">缺音</span>
-                )}
                 {chord.hasExtra && (
                   <span className="rounded bg-info/15 px-1 text-info">经过音</span>
                 )}
