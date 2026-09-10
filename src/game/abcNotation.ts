@@ -114,6 +114,7 @@ function buildVoiceBody(
   notes: Note[],
   key: KeyChoice,
   minTotal = 0,
+  beatsPerBar = 4,
 ): { body: string; noteBeats: number[]; eventBeats: number[]; total: number } {
   const events = new Map<number, VoiceEvent>()
   for (const n of [...notes].sort((a, b) => a.time - b.time)) {
@@ -133,8 +134,8 @@ function buildVoiceBody(
     let cur = start
     let remaining = dur
     while (remaining > 0) {
-      const inBar = cur % 4
-      const toBar = inBar === 0 ? 4 : 4 - inBar
+      const inBar = cur % beatsPerBar
+      const toBar = inBar === 0 ? beatsPerBar : beatsPerBar - inBar
       const part = Math.min(remaining, Math.round(toBar * 4) / 4)
       toks.push({
         text: text + durationToAbc(part) + (isNote && remaining - part > 0 ? '-' : ''),
@@ -189,7 +190,7 @@ function buildVoiceBody(
     justBarred = false
     prev = tok
     const end = tok.start + tok.dur
-    const bar = Math.floor(end / 4)
+    const bar = Math.floor(end / beatsPerBar)
     if (bar > lastBar) {
       body += ' |'
       lastBar = bar
@@ -210,27 +211,29 @@ export function songToAbc(song: Song): AbcResult {
   const sorted = [...song.notes].sort((a, b) => a.time - b.time)
   const left = sorted.filter(isLeftHand)
   const key = detectKey(sorted)
+  const beatsPerBar = song.beatsPerBar ?? 4
+  const meter = `M:${beatsPerBar}/4`
 
   // ---- 单声部：原路径 ----
   if (left.length === 0) {
-    const r = buildVoiceBody(sorted, key)
+    const r = buildVoiceBody(sorted, key, 0, beatsPerBar)
     // 不输出曲名(T:)和速度(Q:)：谱面条场景下它们是竖向装饰行，浪费高度
-    const abc = `X:1\nM:4/4\nL:1/4\nK:${key.name}\n${r.body}|]\n`
+    const abc = `X:1\n${meter}\nL:1/4\nK:${key.name}\n${r.body}|]\n`
     return { abc: abc, noteBeats: r.noteBeats, eventBeats: [r.eventBeats], grand: false }
   }
 
   // ---- 大谱表：V:1 右手（高音谱号）+ V:2 左手（低音谱号） ----
   const right = sorted.filter(n => !isLeftHand(n))
   const total = Math.max(
-    buildVoiceBody(right, key).total,
-    buildVoiceBody(left, key).total,
+    buildVoiceBody(right, key, 0, beatsPerBar).total,
+    buildVoiceBody(left, key, 0, beatsPerBar).total,
   )
-  const r = buildVoiceBody(right, key, total)
-  const l = buildVoiceBody(left, key, total)
+  const r = buildVoiceBody(right, key, total, beatsPerBar)
+  const l = buildVoiceBody(left, key, total, beatsPerBar)
 
   const abc = [
     'X:1',
-    'M:4/4',
+    meter,
     'L:1/4',
     'V:1 clef=treble',
     'V:2 clef=bass',

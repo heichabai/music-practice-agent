@@ -12,6 +12,8 @@ export interface Song {
   id: string
   name: string
   bpm: number
+  /** 每小节拍数（四分音符为一拍），默认 4 */
+  beatsPerBar?: number
   notes: Note[]
 }
 

@@ -590,6 +590,8 @@ export const LESSONS: Lesson[] = [
       answer: 2,
       explain: '上面的数字 = 每小节拍数。4/4 = 每小节 4 拍，以四分音符为一拍。',
     },
+    practiceSongId: 'waltz-3',
+    practiceNote: '课后练习「圆舞曲 · 三拍子」：每小节数"1-2-3"，第 1 拍稍强，感受 3/4 拍。',
   },
   {
     id: 'u4l2-eighth',
@@ -653,6 +655,8 @@ export const LESSONS: Lesson[] = [
       answer: 1,
       explain: '附点 = 原时值 + 一半。四分（1 拍）+ 半拍 = 1.5 拍。',
     },
+    practiceSongId: 'dotted-ex',
+    practiceNote: '课后练习「附点练习曲」：把 1.5 + 0.5 数成"1-&-2"，弹出明显的长短对比。',
   },
   {
     id: 'u4l4-tempo',
@@ -677,12 +681,12 @@ export const LESSONS: Lesson[] = [
       },
       {
         heading: '提速阶梯',
-        body: '拿《热身 · 五指练习》做实验：先用 60 BPM 弹一遍，然后 70、80、90……找到你开始出错的那一档，就退回上一档继续练。那个速度就是你今天的上限。',
+        body: '拿课后练习《快板 · 速度练习》做实验：先用 60 BPM 弹一遍，然后 70、80、90……找到你开始出错的那一档，就退回上一档继续练。那个速度就是你今天的上限。',
         diagram: 'metronome',
       },
     ],
-    practiceSongId: 'warmup',
-    practiceNote: '课后练习「热身 · 五指练习」：用自由式，感受跟上播放速度的压力。',
+    practiceSongId: 'tempo-ex',
+    practiceNote: '课后练习「快板 · 速度练习」（120 BPM）：先用等待式弹准，再自由式感受速度压力。',
   },
   {
     id: 'u4l5-rhythm-review',
@@ -710,8 +714,8 @@ export const LESSONS: Lesson[] = [
         body: '节奏关过了，该请出左手了。下一单元：左手五指位 → 双手齐奏 → 和弦，你的演奏将从"单声道"升级成"立体声"。',
       },
     ],
-    practiceSongId: 'ode',
-    practiceNote: '课后练习「欢乐颂」：自由式一遍，它同时包含四分、八分和附点，是最好的综合测试。',
+    practiceSongId: 'rhythm-review',
+    practiceNote: '课后练习「节奏复习曲」：四分、八分、附点、休止全都有，是最好的综合测试。',
   },
 
   // ============================================================
