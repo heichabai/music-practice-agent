@@ -43,6 +43,9 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
   const noteCountRef = useRef(0)
   const activeMidisRef = useRef<Set<number>>(new Set())
   const cbRef = useRef({ onNoteCountChange, onCurrentNoteChange })
+  // 延音踏板：踩下时松键的音块保持"按住"状态，抬踏板时统一结束
+  const pedalDownRef = useRef(false)
+  const sustainedNotesRef = useRef<Set<RisingNote>>(new Set())
 
   cbRef.current = { onNoteCountChange, onCurrentNoteChange }
 
@@ -102,9 +105,14 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
         const names = sorted.map(m => noteName(m)).join(' + ')
         cbRef.current.onCurrentNoteChange?.(names)
       } else {
-        // 松开
-        const note = notesRef.current.find((n: RisingNote) => n.midi === detail.midi && n.endMs === null)
-        if (note) note.endMs = now
+        // 松开：踏板踩下时保持音块（挂起），否则结束
+        const note = [...notesRef.current]
+          .reverse()
+          .find((n: RisingNote) => n.midi === detail.midi && n.endMs === null)
+        if (note) {
+          if (pedalDownRef.current) sustainedNotesRef.current.add(note)
+          else note.endMs = now
+        }
         activeMidisRef.current.delete(detail.midi)
         if (activeMidisRef.current.size === 0) {
           // 稍延迟清空显示
@@ -117,6 +125,21 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
       }
     }
     window.addEventListener('app-note', onAppNote)
+
+    // 延音踏板：抬起时结束所有挂起的音块
+    const onAppPedal = (e: Event) => {
+      const detail = (e as CustomEvent<{ on: boolean }>).detail
+      if (!detail) return
+      pedalDownRef.current = detail.on
+      if (!detail.on) {
+        const now = performance.now()
+        for (const n of sustainedNotesRef.current) {
+          if (n.endMs === null) n.endMs = now
+        }
+        sustainedNotesRef.current.clear()
+      }
+    }
+    window.addEventListener('app-pedal', onAppPedal)
 
     let raf = 0
     let lastT = performance.now()
@@ -273,6 +296,7 @@ export function FreePlayCanvas({ layout, width, height = CANVAS_H, canvasRef: ex
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('app-note', onAppNote)
+      window.removeEventListener('app-pedal', onAppPedal)
     }
   }, [layout, width, height])
 

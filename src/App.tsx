@@ -241,6 +241,8 @@ export default function App() {
     setPedalDown(on)
     if (!on) setHeldPedalNotes(new Set())
     void pianoSetSustain(on)
+    // 通知自由弹奏画布：踏板踩下时松键音块保持
+    window.dispatchEvent(new CustomEvent('app-pedal', { detail: { on } }))
   }, [])
 
   const handleNote = useCallback(
