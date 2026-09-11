@@ -9,3 +9,7 @@ engine-locals
 *.log
 .DS_Store
 engine-locals-win
+
+# skills CLI 生成的重复副本/符号链接（.agents/skills 为准）
+agent/
+.claude/
