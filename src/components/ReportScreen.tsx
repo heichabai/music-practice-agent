@@ -6,7 +6,7 @@ import { generatePracticePlan, generateReview, type PracticePlan } from '../ai/c
 import { getHistoryBrief } from '../storage/sessionStore'
 import { TimingGauge } from './ui/TimingGauge'
 import { ProblemChip } from './ui/ProblemChip'
-import { PrimaryButton, GhostButton } from './ui/Button'
+import { GhostButton, EnterButton } from './ui/Button'
 import { IconSparkles } from './icons'
 
 interface Props {
@@ -241,7 +241,7 @@ export function ReportScreen({ report, onRetry, onSelect }: Props) {
       <hr className="mt-12 border-border-subtle" />
 
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-        <PrimaryButton onClick={onRetry}>再练一次</PrimaryButton>
+        <EnterButton onClick={onRetry}>再练一次</EnterButton>
         <GhostButton onClick={onSelect}>换一首</GhostButton>
       </div>
     </div>

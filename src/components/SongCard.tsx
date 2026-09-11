@@ -62,7 +62,7 @@ export function SongSection({ songs, onPlay, onDelete }: Props) {
       {custom.length > 0 && (
         <section>
           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-accent-strong">我的曲目</p>
-          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+          <div className="stagger grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
             {custom.map(s => (
               <SongCard key={s.id} song={s} onPlay={onPlay} onDelete={onDelete} />
             ))}
@@ -71,7 +71,7 @@ export function SongSection({ songs, onPlay, onDelete }: Props) {
       )}
       <section>
         <p className="mb-3 text-xs font-bold uppercase tracking-wider text-info">内置曲目</p>
-        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        <div className="stagger grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {builtIn.map(s => (
             <SongCard key={s.id} song={s} onPlay={onPlay} />
           ))}

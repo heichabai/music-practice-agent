@@ -6,7 +6,7 @@ import { ReportScreen } from './components/ReportScreen'
 import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
-import { PrimaryButton, GhostButton } from './components/ui/Button'
+import { GhostButton, EnterButton } from './components/ui/Button'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -28,7 +28,6 @@ import {
   type Achievement,
 } from './game/gamification'
 import { loadGamification, saveGamification } from './storage/gamificationStore'
-import { DuoButton } from './components/DuoButton'
 import { LearningPath } from './components/LearningPath'
 import { SongSection } from './components/SongCard'
 import { AchievementToast, type AchievementToastData } from './components/AchievementToast'
@@ -518,7 +517,7 @@ export default function App() {
         <div className="screen-enter mx-auto w-full max-w-6xl px-8 py-8">
           {/* ===== 继续练习大卡（多邻国式） ===== */}
           {homeTab === 'learn' && (
-            <>
+            <div key="learn" className="tab-enter">
               <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
@@ -547,8 +546,7 @@ export default function App() {
                       : lastPlayed.name ?? SONGS[0].name}
                   </p>
                 </div>
-                <DuoButton
-                  variant="green"
+                <EnterButton
                   className="px-8 py-3"
                   onClick={() => {
                     const t = getTutorialProgress().completed.length
@@ -561,7 +559,7 @@ export default function App() {
                   }}
                 >
                   {getTutorialProgress().completed.length < LESSONS.length ? '继续上课' : '继续练习'}
-                </DuoButton>
+                </EnterButton>
               </div>
 
               {/* 五线谱学习路径（全宽） */}
@@ -582,11 +580,11 @@ export default function App() {
                   </div>
                 )}
               </section>
-            </>
+            </div>
           )}
 
           {homeTab === 'songs' && (
-            <>
+            <div key="songs" className="tab-enter">
               <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
@@ -616,7 +614,7 @@ export default function App() {
                   }}
                 />
               </section>
-            </>
+            </div>
           )}
         </div>
       )}
@@ -747,51 +745,57 @@ export default function App() {
             <span className="text-caption text-muted">弹奏任何音符 · 没有对错 · 享受音乐</span>
             <div className="flex-1" />
             <span className="text-caption tabular-nums text-muted">{freePlayNoteCount} 音</span>
-            <span
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
-                pedalDown ? 'bg-accent/25 text-accent-strong' : 'text-muted'
-              }`}
-              title="延音踏板（MIDI CC64）"
-            >
-              <span
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  pedalDown ? 'bg-accent shadow-[0_0_8px_rgb(242_178_52/0.8)]' : 'bg-muted/50'
-                }`}
-              />
-              延音
-            </span>
-            <button
-              onClick={() => setSynthOn(v => !v)}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs transition-colors ${
-                synthOn ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
-              }`}
-            >
-              伴奏 {synthOn ? '开' : '关'}
-            </button>
-            <button
-              onClick={() => {
-                if (videoRecorder.state === 'recording') videoRecorder.stop()
-                else videoRecorder.start()
-              }}
-              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 ${
-                videoRecorder.state === 'recording'
-                  ? 'bg-wrong/20 text-wrong'
-                  : 'bg-accent/15 text-accent-strong hover:bg-accent/25'
-              }`}
-            >
-              {videoRecorder.state === 'recording' ? (
-                <>
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-wrong" />
-                  停止 {String(Math.floor(videoRecorder.duration / 60)).padStart(1, '0')}:
-                  {String(videoRecorder.duration % 60).padStart(2, '0')}
-                </>
-              ) : (
-                '● 录制视频'
-              )}
-            </button>
           </div>
 
           <div ref={playAreaRef} className="relative flex min-h-0 flex-1 flex-col">
+            {/* 浮动控制坞：延音 / 伴奏 / 录制（独立于顶栏，悬于画布右上角） */}
+            <div className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
+              <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border-subtle bg-surface/85 p-1.5 shadow-panel backdrop-blur-md">
+                <span
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors ${
+                    pedalDown ? 'bg-accent/25 text-accent-strong' : 'text-muted'
+                  }`}
+                  title="延音踏板（MIDI CC64）"
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                      pedalDown ? 'bg-accent shadow-[0_0_8px_rgb(242_178_52/0.8)]' : 'bg-muted/50'
+                    }`}
+                  />
+                  延音
+                </span>
+                <button
+                  onClick={() => setSynthOn(v => !v)}
+                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                    synthOn ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
+                  }`}
+                >
+                  伴奏 {synthOn ? '开' : '关'}
+                </button>
+                <button
+                  onClick={() => {
+                    if (videoRecorder.state === 'recording') videoRecorder.stop()
+                    else videoRecorder.start()
+                  }}
+                  className={`flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-200 ${
+                    videoRecorder.state === 'recording'
+                      ? 'bg-wrong/20 text-wrong'
+                      : 'bg-accent/15 text-accent-strong hover:bg-accent/25'
+                  }`}
+                >
+                  {videoRecorder.state === 'recording' ? (
+                    <>
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-wrong" />
+                      停止 {String(Math.floor(videoRecorder.duration / 60)).padStart(1, '0')}:
+                      {String(videoRecorder.duration % 60).padStart(2, '0')}
+                    </>
+                  ) : (
+                    '● 录制'
+                  )}
+                </button>
+              </div>
+            </div>
+
             <FreePlayCanvas
               canvasRef={freePlayCanvasRef}
               layout={freePlayLayout}
@@ -884,7 +888,7 @@ export default function App() {
                     </span>
                     <GhostButton onClick={backToLesson}>回到本课</GhostButton>
                     {next !== null && (
-                      <PrimaryButton
+                      <EnterButton
                         onClick={() => {
                           finishLesson()
                           setActiveLesson(next)
@@ -893,7 +897,7 @@ export default function App() {
                         }}
                       >
                         继续：第 {next.order} 课 {next.title}
-                      </PrimaryButton>
+                      </EnterButton>
                     )}
                   </>
                 )

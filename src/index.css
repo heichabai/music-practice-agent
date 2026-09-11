@@ -184,6 +184,43 @@ body::after {
   animation: screen-enter 220ms ease-out both;
 }
 
+/* ---------- 统一「进入/开始」按钮：琥珀金渐变 + 3D 高光 ---------- */
+.enter-btn {
+  background: linear-gradient(180deg, #ffd166 0%, #f2b234 52%, #d99420 100%);
+  box-shadow:
+    0 0 22px rgb(242 178 52 / 0.32),
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 3px 10px rgb(0 0 0 / 0.45);
+  text-shadow: 0 1px 1px rgb(255 255 255 / 0.28);
+}
+
+/* ---------- 曲库/课程切换：内容整体渐入 + 卡片交错 ---------- */
+@keyframes tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tab-enter {
+  animation: tab-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tab-enter .stagger > * {
+  animation: tab-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tab-enter .stagger > *:nth-child(1) { animation-delay: 30ms; }
+.tab-enter .stagger > *:nth-child(2) { animation-delay: 60ms; }
+.tab-enter .stagger > *:nth-child(3) { animation-delay: 90ms; }
+.tab-enter .stagger > *:nth-child(4) { animation-delay: 120ms; }
+.tab-enter .stagger > *:nth-child(5) { animation-delay: 150ms; }
+.tab-enter .stagger > *:nth-child(6) { animation-delay: 180ms; }
+.tab-enter .stagger > *:nth-child(7) { animation-delay: 210ms; }
+.tab-enter .stagger > *:nth-child(8) { animation-delay: 240ms; }
+.tab-enter .stagger > *:nth-child(n + 9) { animation-delay: 270ms; }
+
 /* ---------- 报告统计卡交错入场：scale 0.96→1 ---------- */
 @keyframes stat-pop {
   from {

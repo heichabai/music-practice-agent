@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { importMidiFile } from '../game/midiImport'
 import type { Song } from '../types'
-import { PrimaryButton, GhostButton } from './ui/Button'
+import { GhostButton, EnterButton } from './ui/Button'
 import { IconChevronRight, IconMidiKeys, IconScanFrame } from './icons'
 
 interface Props {
@@ -192,14 +192,14 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
                 if (file) void handleOmr(file)
               }}
             />
-            <PrimaryButton
+            <EnterButton
               className={`mt-4 ${busy !== null ? 'pointer-events-none opacity-40' : ''}`}
               onClick={() => omrInputRef.current?.click()}
             >
               {busy === 'omr'
                 ? `${progress}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
                 : '选择乐谱（本地精确识别）'}
-            </PrimaryButton>
+            </EnterButton>
             </div>
             </div>
           </div>

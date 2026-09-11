@@ -3,7 +3,7 @@ import type { Lesson, LessonQuiz, DiagramKind } from '../../game/lessons'
 import { SONGS } from '../../game/songs'
 import { askTutor } from '../../ai/tutorChat'
 import type { Song } from '../../types'
-import { PrimaryButton, GhostButton } from '../ui/Button'
+import { GhostButton, EnterButton } from '../ui/Button'
 import { IconChevronRight, IconSparkles } from '../icons'
 import { TaskKeyboard } from './TaskKeyboard'
 import {
@@ -255,13 +255,13 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
           {/* 完成与课后练习 */}
           <div className="glass rounded-xl p-4">
             {practiceSong !== null && (
-              <PrimaryButton
+              <EnterButton
                 onClick={() => onPractice(practiceSong, lesson.id)}
-                className="w-full justify-center bg-gradient-accent"
+                className="w-full"
               >
                 开始课后练习
                 <IconChevronRight className="h-4 w-4" />
-              </PrimaryButton>
+              </EnterButton>
             )}
             {completedNow ? (
               <p className={`rounded-full bg-hit/15 px-4 py-2 text-center text-body text-hit ${practiceSong !== null ? 'mt-3' : ''}`}>
