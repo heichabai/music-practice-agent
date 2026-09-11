@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Trophy } from '@phosphor-icons/react'
 
 export interface AchievementToastData {
   id: string
@@ -39,8 +40,8 @@ export function AchievementToast({ queue, onDismiss }: Props) {
   return (
     <div className="pointer-events-none fixed left-1/2 top-20 z-50 -translate-x-1/2">
       <div className="glass flex items-center gap-3 rounded-xl border-accent/50 px-5 py-3 shadow-panel" style={{ animation: 'screen-enter 200ms ease-out both' }}>
-        <span className="text-3xl" role="img" aria-label="成就解锁">
-          🏆
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent/15 text-accent-strong">
+          <Trophy size={20} weight="fill" />
         </span>
         <div>
           <div className="text-micro font-medium uppercase text-accent-strong">成就解锁</div>

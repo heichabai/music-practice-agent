@@ -200,7 +200,7 @@ export function LessonScreen({ lesson, nextLesson, onBack, onPractice, onNextLes
                 i < stepIdx
                   ? 'bg-hit/70'
                   : i === stepIdx
-                    ? 'bg-accent shadow-[0_0_6px_rgb(242_178_52/0.6)]'
+                    ? 'bg-accent'
                     : 'bg-border-strong/60'
               }`}
             />

@@ -7,6 +7,7 @@ import { ImportScreen } from './components/ImportScreen'
 import { PianoRollEditor } from './components/PianoRollEditor'
 import { ScorePanel } from './components/ScorePanel'
 import { GhostButton, EnterButton } from './components/ui/Button'
+import { GraduationCap, Headphones, Keyboard, Record, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react'
 import { GameEngine, type HudSnapshot } from './game/engine'
 import { KeyboardLayout } from './game/keyboard'
 import { buildReport, type SessionReport } from './game/report'
@@ -502,7 +503,8 @@ export default function App() {
           active={sidebarActive}
           onNav={handleNav}
           gamification={gamification}
-          midiLabel={midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
+          midiLabel={midiStatus === 'ok' ? deviceName : '电脑键盘可用'}
+          midiOk={midiStatus === 'ok'}
           devMode={devMode}
           onToggleDev={() => {
             const next = !devMode
@@ -573,9 +575,9 @@ export default function App() {
                     }}
                   />
                 ) : (
-                  <div className="rounded-2xl border border-accent/40 bg-accent-dim/20 px-6 py-10 text-center">
-                    <p className="text-3xl">🎓</p>
-                    <p className="mt-2 text-lg font-bold text-primary">全部课程已完成！</p>
+                  <div className="rounded-2xl border border-accent/35 bg-accent-dim/20 px-6 py-10 text-center">
+                    <GraduationCap size={32} weight="duotone" className="mx-auto text-accent-strong" />
+                    <p className="mt-3 text-lg font-bold text-primary">全部课程已完成</p>
                     <p className="mt-1 text-sm text-secondary">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
                   </div>
                 )}
@@ -595,9 +597,10 @@ export default function App() {
                     {allSongs.length} 首 · {MODE_INFO[mode].label}
                   </p>
                 </div>
-                <p className="text-xs text-muted">
-                  {midiStatus === 'ok' ? `🎧 ${deviceName}` : '⌨️ 电脑键盘可用'}
-                  {' · '}
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  {midiStatus === 'ok' ? <Headphones size={13} /> : <Keyboard size={13} />}
+                  {midiStatus === 'ok' ? deviceName : '电脑键盘可用'}
+                  <span className="mx-0.5 text-border-strong">/</span>
                   <button onClick={() => void toggleMic()} className="text-info hover:underline">
                     {micEnabled ? '麦克风已开' : '开麦克风'}
                   </button>
@@ -636,7 +639,7 @@ export default function App() {
             </span>
             <div className="relative h-1 min-w-16 flex-1 overflow-hidden rounded-full bg-raised-2">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-accent shadow-[0_0_10px_rgb(242_178_52/0.5)] transition-all duration-150"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-accent transition-all duration-150"
                 style={{ width: `${(hud?.progress ?? 0) * 100}%` }}
               />
             </div>
@@ -759,25 +762,26 @@ export default function App() {
                 >
                   <span
                     className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                      pedalDown ? 'bg-accent shadow-[0_0_8px_rgb(242_178_52/0.8)]' : 'bg-muted/50'
+                      pedalDown ? 'bg-accent shadow-[0_0_6px_rgb(217_165_74/0.5)]' : 'bg-muted/50'
                     }`}
                   />
                   延音
                 </span>
                 <button
                   onClick={() => setSynthOn(v => !v)}
-                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
                     synthOn ? 'bg-accent/15 text-accent-strong' : 'text-muted hover:bg-raised hover:text-primary'
                   }`}
                 >
-                  伴奏 {synthOn ? '开' : '关'}
+                  {synthOn ? <SpeakerHigh size={13} weight="fill" /> : <SpeakerSlash size={13} />}
+                  伴奏
                 </button>
                 <button
                   onClick={() => {
                     if (videoRecorder.state === 'recording') videoRecorder.stop()
                     else videoRecorder.start()
                   }}
-                  className={`flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-200 ${
                     videoRecorder.state === 'recording'
                       ? 'bg-wrong/20 text-wrong'
                       : 'bg-accent/15 text-accent-strong hover:bg-accent/25'
@@ -790,7 +794,10 @@ export default function App() {
                       {String(videoRecorder.duration % 60).padStart(2, '0')}
                     </>
                   ) : (
-                    '● 录制'
+                    <>
+                      <Record size={13} weight="fill" />
+                      录制
+                    </>
                   )}
                 </button>
               </div>

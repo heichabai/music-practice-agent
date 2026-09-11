@@ -151,7 +151,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
       </div>
 
       <section className="mt-10">
-        <h1 className="text-h2 font-black tracking-tight text-primary">📥 导入乐谱</h1>
+        <h1 className="text-h2 font-black tracking-tight text-primary">导入乐谱</h1>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-secondary">
           上传乐谱图片 / PDF 由本地 OMR 引擎离线识别（印刷谱准确率高），或直接导入
           MIDI 文件（100% 精确）。导入后都会进入校对编辑器，试听无误再存入曲库。

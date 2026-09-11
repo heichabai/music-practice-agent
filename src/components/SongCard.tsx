@@ -1,3 +1,4 @@
+import { MusicNote, MusicNotes, PianoKeys, Play, Robot } from '@phosphor-icons/react'
 import type { Song } from '../types'
 
 interface Props {
@@ -7,7 +8,14 @@ interface Props {
 }
 
 
-const CARD_COLORS = ['#38bdf8', '#a882ff', '#4ade80', '#f2b234', '#f87171', '#2dd4bf']
+const CARD_COLORS = ['#38bdf8', '#a882ff', '#4ade80', '#d9a54a', '#f87171', '#2dd4bf']
+
+function SourceIcon({ source, size = 18 }: { source?: string; size?: number }) {
+  if (source === 'omr') return <MusicNotes size={size} weight="duotone" />
+  if (source === 'image') return <Robot size={size} weight="duotone" />
+  if (source === 'midi') return <PianoKeys size={size} weight="duotone" />
+  return <MusicNote size={size} weight="duotone" />
+}
 
 /** 深色曲目卡片：彩色光条 + 标题 + BPM，全宽网格排布 */
 export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: string }; onPlay: (s: Song) => void; onDelete?: (id: string) => void }) {
@@ -18,27 +26,25 @@ export function SongCard({ song, onPlay, onDelete }: { song: Song & { source?: s
     <div className="group relative">
       <button
         onClick={() => onPlay(song)}
-        className="flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-raised/70 p-4 text-left transition-all duration-150 hover:border-border-strong hover:bg-raised hover:shadow-[0_6px_24px_rgb(0_0_0/0.4)] active:translate-y-[1px]"
+        className="flex w-full items-center gap-3 rounded-2xl border border-border-subtle bg-raised/60 p-4 text-left transition-all duration-200 hover:border-border-strong hover:bg-raised hover:shadow-soft active:translate-y-[1px]"
       >
         <span
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-lg"
-          style={{ background: `${color}22`, color, boxShadow: `inset 0 0 0 1px ${color}55` }}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl"
+          style={{ background: `${color}1a`, color, boxShadow: `inset 0 0 0 1px ${color}3d` }}
         >
-          {song.source === 'omr' ? '🎼' : song.source === 'image' ? '🤖' : song.source === 'midi' ? '🎹' : '🎵'}
+          <SourceIcon source={song.source} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-bold text-primary">{song.name}</span>
-          <span className="text-xs font-medium text-muted">
-            {song.bpm} BPM · {song.notes.length} 音
+          <span className="block truncate font-semibold text-primary">{song.name}</span>
+          <span className="text-xs font-medium tabular-nums text-muted">
+            {song.bpm} BPM / {song.notes.length} 音
           </span>
         </span>
         <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all group-hover:scale-110"
-          style={{ background: `${color}1e`, color }}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-105"
+          style={{ background: `${color}1a`, color }}
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-            <path d="M8 5.14v14l11-7-11-7z" />
-          </svg>
+          <Play size={13} weight="fill" />
         </span>
       </button>
       {onDelete !== undefined && (

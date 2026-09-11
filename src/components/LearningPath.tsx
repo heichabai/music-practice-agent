@@ -45,8 +45,8 @@ interface NoteNodeProps {
 function NoteNode({ lesson, x, s, state, color, dev, onOpen }: NoteNodeProps) {
   const locked = state === 'locked'
   const headFill =
-    state === 'done' ? '#f2b234' : state === 'locked' ? '#171c28' : color
-  const stroke = state === 'done' ? '#f2b234' : state === 'locked' ? '#35405c' : color
+    state === 'done' ? '#d9a54a' : state === 'locked' ? '#171c28' : color
+  const stroke = state === 'done' ? '#d9a54a' : state === 'locked' ? '#35405c' : color
 
   return (
     <button
@@ -73,10 +73,8 @@ function NoteNode({ lesson, x, s, state, color, dev, onOpen }: NoteNodeProps) {
         style={{
           filter:
             state === 'current'
-              ? `drop-shadow(0 0 10px ${color})`
-              : state === 'done'
-                ? 'drop-shadow(0 0 7px rgb(242 178 52 / 0.55))'
-                : undefined,
+              ? `drop-shadow(0 0 8px ${color}88)`
+              : undefined,
           animation: state === 'current' ? 'target-pulse 1.6s ease-in-out infinite' : undefined,
         }}
       >
@@ -197,13 +195,12 @@ export function LearningPath({ lessons, onOpenLesson }: Props) {
                   className="pointer-events-none absolute inset-0 h-full w-full"
                   viewBox={`0 0 1000 ${BOX_H}`}
                   preserveAspectRatio="none"
-                  style={{ filter: 'drop-shadow(0 0 5px rgb(242 178 52 / 0.45))' }}
                 >
                   <polyline
                     points={melodyPts}
                     fill="none"
-                    stroke="#f2b234"
-                    strokeOpacity="0.5"
+                    stroke="#d9a54a"
+                    strokeOpacity="0.45"
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"

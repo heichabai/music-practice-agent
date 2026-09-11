@@ -1,4 +1,24 @@
 import {
+  BookOpen,
+  ChatCircle,
+  Crown,
+  Diamond,
+  FileArrowDown,
+  Flame,
+  GraduationCap,
+  Lightning,
+  Medal,
+  Metronome,
+  Microphone,
+  Moon,
+  MusicNote,
+  Star,
+  Sun,
+  Target,
+  Trophy,
+  type Icon,
+} from '@phosphor-icons/react'
+import {
   levelFromXp,
   levelName,
   xpToNextLevel,
@@ -10,27 +30,27 @@ interface Props {
   gamification: GamificationState
 }
 
-const ICONS: Record<string, string> = {
-  note: '🎵',
-  lesson: '📖',
-  graduation: '🎓',
-  flame3: '🔥',
-  flame7: '🔥',
-  flame30: '🔥',
-  target100: '🎯',
-  target500: '🎯',
-  target1000: '🎯',
-  star: '⭐',
-  diamond: '💎',
-  import: '📥',
-  mic: '🎤',
-  rhythm: '🥁',
-  bolt: '⚡',
-  sunrise: '🌅',
-  moon: '🌙',
-  trophy: '🏆',
-  chat: '💬',
-  crown: '👑',
+const ICONS: Record<string, Icon> = {
+  note: MusicNote,
+  lesson: BookOpen,
+  graduation: GraduationCap,
+  flame3: Flame,
+  flame7: Flame,
+  flame30: Flame,
+  target100: Target,
+  target500: Target,
+  target1000: Target,
+  star: Star,
+  diamond: Diamond,
+  import: FileArrowDown,
+  mic: Microphone,
+  rhythm: Metronome,
+  bolt: Lightning,
+  sunrise: Sun,
+  moon: Moon,
+  trophy: Trophy,
+  chat: ChatCircle,
+  crown: Crown,
 }
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -64,7 +84,7 @@ export function ProgressScreen({ gamification }: Props) {
       {/* 等级卡 */}
       <section className="glass mt-8 overflow-hidden rounded-2xl p-6">
         <div className="flex flex-wrap items-center gap-6">
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-gradient-accent text-3xl font-black text-on-accent shadow-[0_8px_28px_rgb(242_178_52/0.4)]">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-gradient-accent text-3xl font-black text-on-accent">
             {level}
           </div>
           <div className="min-w-0 flex-1">
@@ -76,7 +96,7 @@ export function ProgressScreen({ gamification }: Props) {
             </div>
             <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-border-strong/50">
               <div
-                className="h-full rounded-full bg-gradient-accent shadow-[0_0_10px_rgb(242_178_52/0.5)] transition-all duration-700"
+                className="h-full rounded-full bg-gradient-accent transition-all duration-700"
                 style={{ width: `${progress * 100}%` }}
               />
             </div>
@@ -110,23 +130,24 @@ export function ProgressScreen({ gamification }: Props) {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {gamification.achievements.map(a => {
             const on = a.unlockedAt !== null
+            const AchIcon = ICONS[a.icon] ?? Medal
             return (
               <div
                 key={a.id}
-                className={`flex items-center gap-3.5 rounded-xl border px-4 py-3.5 transition-colors ${
+                className={`flex items-center gap-3.5 rounded-2xl border px-4 py-3.5 transition-colors ${
                   on
-                    ? 'border-accent/40 bg-accent-dim/20'
+                    ? 'border-accent/35 bg-accent-dim/20'
                     : 'border-border-subtle bg-raised/40 opacity-60'
                 }`}
               >
                 <span
-                  className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl ${
+                  className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${
                     on
-                      ? 'bg-accent/20 shadow-[0_0_14px_rgb(242_178_52/0.3)]'
-                      : 'bg-border-strong/30 grayscale'
+                      ? 'bg-accent/15 text-accent-strong'
+                      : 'bg-border-strong/25 text-muted'
                   }`}
                 >
-                  {ICONS[a.icon] ?? '🏅'}
+                  <AchIcon size={20} weight={on ? 'fill' : 'regular'} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className={`truncate text-body font-medium ${on ? 'text-primary' : 'text-secondary'}`}>
