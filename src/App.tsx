@@ -41,7 +41,7 @@ import { useVideoRecorder } from './hooks/useVideoRecorder'
 import { LESSONS, type Lesson } from './game/lessons'
 import { markLessonComplete, getTutorialProgress, isDevMode, setDevMode } from './storage/tutorialStore'
 import { LessonScreen } from './components/tutorial/LessonScreen'
-import { Sidebar, type NavKey } from './components/Sidebar'
+import { TopBar, type NavKey } from './components/TopBar'
 
 type Screen = 'select' | 'play' | 'report' | 'import' | 'editor' | 'lesson' | 'freeplay' | 'progress'
 
@@ -102,9 +102,6 @@ export default function App() {
     imageUrl?: string
   } | null>(null)
   const [showScore, setShowScore] = useState(true)
-  const [lastPlayed, setLastPlayed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('mpa.lastPlayed') ?? '{}') } catch { return {} }
-  })
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [fromLessonId, setFromLessonId] = useState<string | null>(null)
   const [lessonSongOverride, setLessonSongOverride] = useState<Song | null>(null)
@@ -323,7 +320,6 @@ export default function App() {
       setFromLessonId(null)
       const songObj = allSongs.find(x => x.id === id) ?? allSongs[0]
       const lp = { id, name: songObj.name }
-      setLastPlayed(lp)
       try { localStorage.setItem('mpa.lastPlayed', JSON.stringify(lp)) } catch {}
       const s = allSongs.find(x => x.id === id) ?? allSongs[0]
       engineRef.current = new GameEngine(s, practiceMode)
@@ -454,15 +450,15 @@ export default function App() {
     }
   }, [screen, fromLessonId, applyGamification])
 
-  /** 带侧栏的页面；演奏/课程/自由弹奏为全屏沉浸页 */
-  const withSidebar =
+  /** 带顶部导航的页面；演奏/课程/自由弹奏为全屏沉浸页（无导航） */
+  const withTopBar =
     screen === 'select' ||
     screen === 'import' ||
     screen === 'editor' ||
     screen === 'report' ||
     screen === 'progress'
 
-  const sidebarActive: NavKey | null =
+  const navActive: NavKey | null =
     screen === 'select'
       ? homeTab
       : screen === 'import' || screen === 'editor'
@@ -470,6 +466,8 @@ export default function App() {
         : screen === 'progress'
           ? 'progress'
           : null
+
+  const tutorialDone = getTutorialProgress().completed.length
 
   const handleNav = async (key: NavKey) => {
     if (key === 'learn' || key === 'songs') {
@@ -497,10 +495,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden text-primary">
-      {withSidebar && (
-        <Sidebar
-          active={sidebarActive}
+    <div className="flex h-screen flex-col overflow-hidden text-primary">
+      {withTopBar && (
+        <TopBar
+          active={navActive}
           onNav={handleNav}
           gamification={gamification}
           midiLabel={midiStatus === 'ok' ? deviceName : '电脑键盘可用'}
@@ -514,97 +512,124 @@ export default function App() {
         />
       )}
 
-      <main className={`min-w-0 flex-1 ${withSidebar ? 'overflow-y-auto' : 'h-full'}`}>
+      <main className={`min-h-0 flex-1 ${withTopBar ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       {screen === 'select' && (
-        <div className="screen-enter mx-auto w-full max-w-6xl px-8 py-8">
-          {/* ===== 继续练习大卡（多邻国式） ===== */}
+        <div className="screen-enter mx-auto w-full max-w-6xl px-8 py-10">
           {homeTab === 'learn' && (
             <div key="learn" className="tab-enter">
-              <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
-                    Learning Score
-                  </p>
-                  <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">学习路径</h1>
-                  <p className="mt-1.5 text-sm text-secondary">
-                    {MODE_INFO[mode].label} · {MODE_INFO[mode].desc}
+              {/* 头部：大标题 + 模式分段控件 */}
+              <header className="flex flex-wrap items-end justify-between gap-6">
+                <div className="min-w-0">
+                  <h1 className="text-display font-bold text-primary">学习路径</h1>
+                  <p className="mt-3 max-w-[54ch] text-body text-secondary">
+                    26 课从认识琴键到双手弹奏，沿着五线谱逐音爬升。已完成的课连成一条旋律，随时可以回头复习。
                   </p>
                 </div>
-                <button
-                  onClick={() => setMode(m => (m === 'wait' ? 'free' : 'wait'))}
-                  className="rounded-full border border-border-strong px-4 py-1.5 text-xs text-secondary transition-colors hover:border-accent/60 hover:text-accent-strong"
-                >
-                  切换为{mode === 'wait' ? '自由式' : '等待式'}
-                </button>
+                <div className="flex shrink-0 rounded-full border border-border-subtle bg-raised/50 p-1">
+                  {(['wait', 'free'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                        mode === m
+                          ? 'bg-accent text-on-accent'
+                          : 'text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {MODE_INFO[m].label}
+                    </button>
+                  ))}
+                </div>
               </header>
 
-              {/* 继续横幅 */}
-              <div className="glass mt-6 flex flex-wrap items-center gap-4 rounded-2xl px-6 py-4">
-                <div className="min-w-0 flex-1">
-                  <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">继续</p>
-                  <p className="mt-1 truncate text-h3 font-bold text-primary">
-                    {getTutorialProgress().completed.length < LESSONS.length
-                      ? `第 ${getTutorialProgress().completed.length + 1} 课 · ${LESSONS[Math.min(getTutorialProgress().completed.length, LESSONS.length - 1)].title}`
-                      : lastPlayed.name ?? SONGS[0].name}
-                  </p>
-                </div>
-                <EnterButton
-                  className="px-8 py-3"
-                  onClick={() => {
-                    const t = getTutorialProgress().completed.length
-                    if (t < LESSONS.length) {
-                      setActiveLesson(LESSONS[Math.min(t, LESSONS.length - 1)])
-                      setScreen('lesson')
-                    } else {
-                      void startSong(lastPlayed.id ?? SONGS[0].id, mode)
-                    }
-                  }}
-                >
-                  {getTutorialProgress().completed.length < LESSONS.length ? '继续上课' : '继续练习'}
-                </EnterButton>
-              </div>
-
-              {/* 五线谱学习路径（全宽） */}
-              <section className="mt-10">
-                {getTutorialProgress().completed.length < LESSONS.length ? (
-                  <LearningPath
-                    lessons={LESSONS}
-                    onOpenLesson={lesson => {
+              {/* 继续卡：非对称 hero + 底部进度线 */}
+              <section className="mt-8 overflow-hidden rounded-2xl border border-border-subtle bg-surface/60">
+                <div className="flex flex-wrap items-center gap-6 px-7 py-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">
+                      {tutorialDone < LESSONS.length ? '下一课' : '全部完成'}
+                    </p>
+                    <h2 className="mt-1.5 truncate text-h2 font-bold text-primary">
+                      {tutorialDone < LESSONS.length
+                        ? `第 ${tutorialDone + 1} 课 / ${LESSONS[tutorialDone].title}`
+                        : '随时回头复习任意一课'}
+                    </h2>
+                    <p className="mt-1.5 text-caption tabular-nums text-muted">
+                      {tutorialDone} / {LESSONS.length} 已完成 /{' '}
+                      {Math.round((tutorialDone / LESSONS.length) * 100)}%
+                    </p>
+                  </div>
+                  <EnterButton
+                    className="px-7 py-3"
+                    onClick={() => {
+                      const lesson =
+                        tutorialDone < LESSONS.length ? LESSONS[tutorialDone] : LESSONS[0]
                       setActiveLesson(lesson)
                       setScreen('lesson')
                     }}
+                  >
+                    {tutorialDone < LESSONS.length ? '继续上课' : '复习第一课'}
+                  </EnterButton>
+                </div>
+                <div className="h-1 bg-raised-2">
+                  <div
+                    className="h-full bg-gradient-accent transition-all duration-700"
+                    style={{ width: `${(tutorialDone / LESSONS.length) * 100}%` }}
                   />
-                ) : (
-                  <div className="rounded-2xl border border-accent/35 bg-accent-dim/20 px-6 py-10 text-center">
-                    <GraduationCap size={32} weight="duotone" className="mx-auto text-accent-strong" />
-                    <p className="mt-3 text-lg font-bold text-primary">全部课程已完成</p>
-                    <p className="mt-1 text-sm text-secondary">去曲库挑战更多曲目，或导入你喜欢的乐谱</p>
+                </div>
+              </section>
+
+              {/* 五线谱学习路径（始终显示：完成后仍可点击复习） */}
+              <section className="mt-10">
+                {tutorialDone === LESSONS.length && (
+                  <div className="mb-5 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-dim/20 px-4 py-2.5 text-caption text-accent-strong">
+                    <GraduationCap size={16} weight="fill" className="shrink-0" />
+                    全部课程已完成，点击路径上任意音符可回头复习
                   </div>
                 )}
+                <LearningPath
+                  lessons={LESSONS}
+                  onOpenLesson={lesson => {
+                    setActiveLesson(lesson)
+                    setScreen('lesson')
+                  }}
+                />
               </section>
             </div>
           )}
 
           {homeTab === 'songs' && (
             <div key="songs" className="tab-enter">
-              <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">
-                    Library
+              <header className="flex flex-wrap items-end justify-between gap-6">
+                <div className="min-w-0">
+                  <h1 className="text-display font-bold text-primary">曲库</h1>
+                  <p className="mt-3 max-w-[54ch] text-body text-secondary">
+                    {allSongs.length} 首曲目，从五指位练习到双手合奏。选一首开始，或导入你自己的乐谱。
                   </p>
-                  <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">曲库</h1>
-                  <p className="mt-1.5 text-sm text-secondary">
-                    {allSongs.length} 首 · {MODE_INFO[mode].label}
+                  <p className="mt-3 flex items-center gap-1.5 text-caption text-muted">
+                    {midiStatus === 'ok' ? <Headphones size={13} /> : <Keyboard size={13} />}
+                    {midiStatus === 'ok' ? deviceName : '电脑键盘可用'}
+                    <span className="mx-1 text-border-strong">/</span>
+                    <button onClick={() => void toggleMic()} className="text-info hover:underline">
+                      {micEnabled ? '麦克风已开' : '开麦克风'}
+                    </button>
                   </p>
                 </div>
-                <p className="flex items-center gap-1.5 text-xs text-muted">
-                  {midiStatus === 'ok' ? <Headphones size={13} /> : <Keyboard size={13} />}
-                  {midiStatus === 'ok' ? deviceName : '电脑键盘可用'}
-                  <span className="mx-0.5 text-border-strong">/</span>
-                  <button onClick={() => void toggleMic()} className="text-info hover:underline">
-                    {micEnabled ? '麦克风已开' : '开麦克风'}
-                  </button>
-                </p>
+                <div className="flex shrink-0 rounded-full border border-border-subtle bg-raised/50 p-1">
+                  {(['wait', 'free'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                        mode === m
+                          ? 'bg-accent text-on-accent'
+                          : 'text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {MODE_INFO[m].label}
+                    </button>
+                  ))}
+                </div>
               </header>
 
               <section className="mt-8">
