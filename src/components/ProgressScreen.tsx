@@ -55,7 +55,7 @@ const ICONS: Record<string, Icon> = {
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-border-subtle bg-raised/60 px-4 py-3.5">
+    <div className="progress-stat rounded-xl border border-border-subtle bg-raised/60 px-4 py-3.5">
       <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className="mt-1 text-xl font-bold tabular-nums text-primary">{value}</p>
       {hint !== undefined && <p className="mt-0.5 text-[11px] text-muted">{hint}</p>}
@@ -72,17 +72,17 @@ export function ProgressScreen({ gamification }: Props) {
   const goalPct = Math.min(1, gamification.todayNotes / DAILY_NOTE_GOAL)
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-8 py-10">
+    <div className="progress-page studio-page mx-auto w-full max-w-5xl px-8 py-10">
       <header>
-        <p className="text-micro font-medium uppercase tracking-[0.2em] text-muted">Progress</p>
-        <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">成长记录</h1>
+        <p className="eyebrow">EVERY NOTE COUNTS</p>
+        <h1 className="mt-1.5 text-h1 font-bold tracking-tight text-primary">每一个音，都算数。</h1>
         <p className="mt-1.5 text-sm text-secondary">
-          等级、练习数据与成就徽章，都记录在这里
+          回看你走过的路，也给下一次练习一点期待。
         </p>
       </header>
 
       {/* 等级卡 */}
-      <section className="glass mt-8 overflow-hidden rounded-2xl p-6">
+      <section className="progress-level glass mt-8 overflow-hidden rounded-2xl p-6">
         <div className="flex flex-wrap items-center gap-6">
           <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-gradient-accent text-3xl font-black text-on-accent">
             {level}
@@ -137,7 +137,7 @@ export function ProgressScreen({ gamification }: Props) {
                 className={`flex items-center gap-3.5 rounded-2xl border px-4 py-3.5 transition-colors ${
                   on
                     ? 'border-accent/35 bg-accent-dim/20'
-                    : 'border-border-subtle bg-raised/40 opacity-60'
+                    : 'border-border-subtle bg-raised/40'
                 }`}
               >
                 <span

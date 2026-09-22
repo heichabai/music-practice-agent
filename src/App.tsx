@@ -495,7 +495,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden text-primary">
+    <div className={`app-shell ${screen === 'play' || screen === 'freeplay' ? 'performance' : 'studio'} flex h-screen flex-col overflow-hidden text-primary`}>
       {withTopBar && (
         <TopBar
           active={navActive}
@@ -514,15 +514,16 @@ export default function App() {
 
       <main className={`min-h-0 flex-1 ${withTopBar ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       {screen === 'select' && (
-        <div className="screen-enter mx-auto w-full max-w-6xl px-8 py-10">
+        <div className="studio-page screen-enter mx-auto w-full max-w-6xl px-8 py-10">
           {homeTab === 'learn' && (
             <div key="learn" className="tab-enter">
               {/* 头部：大标题 + 模式分段控件 */}
               <header className="flex flex-wrap items-end justify-between gap-6">
                 <div className="min-w-0">
-                  <h1 className="text-display font-bold text-primary">学习路径</h1>
+                  <p className="eyebrow">A LITTLE PRACTICE, EVERY DAY</p>
+                  <h1 className="text-display font-bold text-primary">把今天，弹成一段旋律。</h1>
                   <p className="mt-3 max-w-[54ch] text-body text-secondary">
-                    26 课从认识琴键到双手弹奏，沿着五线谱逐音爬升。已完成的课连成一条旋律，随时可以回头复习。
+                    从第一个音，到第一次双手合奏。跟着自己的节奏，让音乐慢慢发生。
                   </p>
                 </div>
                 <div className="flex shrink-0 rounded-full border border-border-subtle bg-raised/50 p-1">
@@ -530,6 +531,7 @@ export default function App() {
                     <button
                       key={m}
                       onClick={() => setMode(m)}
+                      aria-pressed={mode === m}
                       className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
                         mode === m
                           ? 'bg-accent text-on-accent'
@@ -543,11 +545,11 @@ export default function App() {
               </header>
 
               {/* 继续卡：非对称 hero + 底部进度线 */}
-              <section className="mt-8 overflow-hidden rounded-2xl border border-border-subtle bg-surface/60">
+              <section className="practice-hero mt-8 overflow-hidden rounded-2xl border border-border-subtle bg-surface/60">
                 <div className="flex flex-wrap items-center gap-6 px-7 py-6">
                   <div className="min-w-0 flex-1">
                     <p className="text-micro font-medium uppercase tracking-[0.16em] text-muted">
-                      {tutorialDone < LESSONS.length ? '下一课' : '全部完成'}
+                      {tutorialDone < LESSONS.length ? '继续你的音乐旅程 / NEXT LESSON' : '每一次重温，都有新的发现 / PLAY AGAIN'}
                     </p>
                     <h2 className="mt-1.5 truncate text-h2 font-bold text-primary">
                       {tutorialDone < LESSONS.length
@@ -571,6 +573,7 @@ export default function App() {
                     {tutorialDone < LESSONS.length ? '继续上课' : '复习第一课'}
                   </EnterButton>
                 </div>
+                <div className="hero-keys" aria-hidden="true">{Array.from({length:14}, (_,i) => <span key={i} className={[0,1,3,4,5].includes(i % 7) ? 'has-black' : ''} />)}</div>
                 <div className="h-1 bg-raised-2">
                   <div
                     className="h-full bg-gradient-accent transition-all duration-700"
@@ -584,7 +587,7 @@ export default function App() {
                 {tutorialDone === LESSONS.length && (
                   <div className="mb-5 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-dim/20 px-4 py-2.5 text-caption text-accent-strong">
                     <GraduationCap size={16} weight="fill" className="shrink-0" />
-                    全部课程已完成，点击路径上任意音符可回头复习
+                    基础课程已完成。选一节喜欢的课，让熟悉的旋律更进一步。
                   </div>
                 )}
                 <LearningPath
@@ -602,7 +605,8 @@ export default function App() {
             <div key="songs" className="tab-enter">
               <header className="flex flex-wrap items-end justify-between gap-6">
                 <div className="min-w-0">
-                  <h1 className="text-display font-bold text-primary">曲库</h1>
+                  <p className="eyebrow">THE MUSIC COLLECTION</p>
+                  <h1 className="text-display font-bold text-primary">今天，想弹哪一首？</h1>
                   <p className="mt-3 max-w-[54ch] text-body text-secondary">
                     {allSongs.length} 首曲目，从五指位练习到双手合奏。选一首开始，或导入你自己的乐谱。
                   </p>
@@ -620,6 +624,7 @@ export default function App() {
                     <button
                       key={m}
                       onClick={() => setMode(m)}
+                      aria-pressed={mode === m}
                       className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
                         mode === m
                           ? 'bg-accent text-on-accent'

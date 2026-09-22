@@ -140,7 +140,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
   }
 
   return (
-    <div className="w-full">
+    <div className="import-page w-full">
       <div className="flex items-center gap-5 border-b border-border-subtle pb-4">
         <GhostButton onClick={onCancel} className="px-3 py-1 text-xs">
           ‹ 返回
@@ -151,10 +151,10 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
       </div>
 
       <section className="mt-10">
-        <h1 className="text-h2 font-black tracking-tight text-primary">导入乐谱</h1>
+        <p className="eyebrow">MAKE IT YOUR OWN</p>
+        <h1 className="text-h2 font-black tracking-tight text-primary">把想弹的音乐，带进来。</h1>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-secondary">
-          上传乐谱图片 / PDF 由本地 OMR 引擎离线识别（印刷谱准确率高），或直接导入
-          MIDI 文件（100% 精确）。导入后都会进入校对编辑器，试听无误再存入曲库。
+          添加图片、PDF 或 MIDI 文件。识别后先试听、校对，再收藏到你的曲库。
         </p>
 
         <div className="mt-6 flex items-center gap-2 text-micro text-muted">
@@ -165,22 +165,21 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
           <span className="rounded-full bg-raised-2 px-2.5 py-1">入库练习</span>
         </div>
 
-        <div className="mt-8 grid items-start gap-5 md:grid-cols-2">
+        <div className="import-options mt-8 grid items-stretch gap-5 md:grid-cols-2">
           <div className="rounded-xl border border-accent/40 bg-surface p-5 transition-colors duration-200 hover:border-accent/70">
             <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-amber-400/90 to-orange-600/90 text-slate-950 shadow-[0_4px_16px_rgb(245_158_11/0.35)]">
+            <span className="import-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg">
               <IconScanFrame className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 text-sm font-medium text-primary">
-              本地精确识别
+              图片与 PDF 乐谱
               <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-normal text-accent-strong">
-                印刷谱推荐 · OMR 离线引擎
+                印刷五线谱推荐
               </span>
             </p>
             <p className="mt-1 text-xs text-muted">
-              专业乐谱识别引擎（Audiveris），在本机离线运行，印刷五线谱准确率高；
-              支持图片与 PDF，首次识别会自动启动本地识别服务
+              在本机离线识别五线谱。清晰的扫描件效果更好，导入后可逐音校对。
             </p>
             <input
               ref={omrInputRef}
@@ -198,7 +197,7 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
             >
               {busy === 'omr'
                 ? `${progress}${elapsed > 10 ? ` · ${elapsed}s` : ''}`
-                : '选择乐谱（本地精确识别）'}
+                : '选择图片或 PDF'}
             </EnterButton>
             </div>
             </div>
@@ -206,11 +205,11 @@ export function ImportScreen({ onDraft, onCancel }: Props) {
 
           <div className="rounded-xl border border-border-subtle bg-surface p-5 transition-colors duration-200 hover:border-border-strong">
             <div className="flex items-start gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-slate-500/80 to-slate-700/80 text-white">
+            <span className="import-icon grid h-11 w-11 shrink-0 place-items-center rounded-lg">
               <IconMidiKeys className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-primary">MIDI 文件 · 精确导入</p>
+            <p className="text-sm font-medium text-primary">MIDI 乐谱文件</p>
             <p className="mt-1 text-xs text-muted">
               支持 .mid / .midi，多轨道自动选取主旋律
             </p>

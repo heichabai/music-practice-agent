@@ -1,4 +1,5 @@
-import { MusicNote, MusicNotes, PianoKeys, Play, Robot, Trash } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { MagnifyingGlass, MusicNotes, Play, Trash, X } from '@phosphor-icons/react'
 import type { Song } from '../types'
 
 interface Props {
@@ -7,98 +8,33 @@ interface Props {
   onDelete?: (id: string) => void
 }
 
-const ROW_COLORS = ['#38bdf8', '#a882ff', '#4ade80', '#d9a54a', '#f87171', '#2dd4bf']
-
-function SourceIcon({ source, size = 15 }: { source?: string; size?: number }) {
-  if (source === 'omr') return <MusicNotes size={size} weight="duotone" />
-  if (source === 'image') return <Robot size={size} weight="duotone" />
-  if (source === 'midi') return <PianoKeys size={size} weight="duotone" />
-  return <MusicNote size={size} weight="duotone" />
-}
-
-/** 曲目行：序号 / 来源图标 / 标题 / 元信息 / 播放 */
-function SongRow({
-  song,
-  index,
-  onPlay,
-  onDelete,
-}: {
-  song: Song & { source?: string }
-  index: number
-  onPlay: (s: Song) => void
-  onDelete?: (id: string) => void
-}) {
-  const idx = Math.abs(song.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % ROW_COLORS.length
-  const color = ROW_COLORS[idx]
-
-  return (
-    <div className="group relative flex items-center">
-      <button
-        onClick={() => onPlay(song)}
-        className="flex min-w-0 flex-1 items-center gap-4 rounded-xl px-3 py-3.5 text-left transition-colors duration-150 hover:bg-raised/50"
-      >
-        <span className="w-5 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted">
-          {String(index).padStart(2, '0')}
-        </span>
-        <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg"
-          style={{ background: `${color}17`, color, boxShadow: `inset 0 0 0 1px ${color}33` }}
-        >
-          <SourceIcon source={song.source} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold text-primary">{song.name}</span>
-          <span className="text-xs font-medium tabular-nums text-muted">
-            {song.bpm} BPM / {song.notes.length} 音
-          </span>
-        </span>
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-accent-strong opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <Play size={14} weight="fill" />
-        </span>
-      </button>
-      {onDelete !== undefined && (
-        <button
-          onClick={() => onDelete(song.id)}
-          title="删除该曲目"
-          className="absolute right-12 grid h-7 w-7 place-items-center rounded-full text-muted opacity-0 transition-opacity duration-150 hover:bg-wrong/15 hover:text-wrong group-hover:opacity-100"
-        >
-          <Trash size={13} />
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** 曲库：分组曲目列表（我的曲目 / 内置曲目） */
 export function SongSection({ songs, onPlay, onDelete }: Props) {
-  const builtIn = songs.filter(s => s.source === undefined)
-  const custom = songs.filter(s => s.source !== undefined)
-
-  const groups: Array<{ title: string; items: Array<Song & { source?: string }>; deletable: boolean }> = []
-  if (custom.length > 0) groups.push({ title: '我的曲目', items: custom, deletable: true })
-  groups.push({ title: '内置曲目', items: builtIn, deletable: false })
-
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const visible = songs.filter(s => s.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) && (filter === 'all' || (filter === 'custom' ? s.source !== undefined : s.source === undefined)))
   return (
-    <div className="space-y-10">
-      {groups.map(group => (
-        <section key={group.title}>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-h3 font-semibold text-primary">{group.title}</h2>
-            <span className="text-caption tabular-nums text-muted">{group.items.length} 首</span>
-          </div>
-          <div className="mt-2 divide-y divide-border-subtle/60">
-            {group.items.map((s, i) => (
-              <SongRow
-                key={s.id}
-                song={s}
-                index={i + 1}
-                onPlay={onPlay}
-                onDelete={group.deletable ? onDelete : undefined}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+    <div className="song-library">
+      <div className="library-toolbar">
+        <div className="library-filters" role="group" aria-label="曲目来源">
+          {([['all', '全部曲目'], ['builtin', '内置曲目'], ['custom', '我的乐谱']] as const).map(([value, label]) => <button key={value} onClick={() => setFilter(value)} aria-pressed={filter === value} className={filter === value ? 'selected' : ''}>{label}</button>)}
+        </div>
+        <label className="song-search"><MagnifyingGlass size={18} /><input aria-label="搜索曲目" placeholder="搜索一首想弹的曲子" value={query} onChange={e => setQuery(e.target.value)} />{query && <button onClick={() => setQuery('')} aria-label="清除搜索"><X size={14} /></button>}</label>
+      </div>
+      <div className="section-heading"><h2>把喜欢的旋律，留给今天</h2><span aria-live="polite">{visible.length} 首曲目</span></div>
+      <div className="song-grid">
+        {visible.map(song => {
+          const index = songs.indexOf(song)
+          return <article className="song-card" key={song.id}>
+            <button className="song-card-play" onClick={() => onPlay(song)} aria-label={`练习 ${song.name}`}>
+              <div className={`song-cover cover-${index % 4}`} aria-hidden="true"><span className="cover-label">{song.source ? 'MY COLLECTION' : 'PIANO STUDIES'}</span><div className="cover-staff">{[0,1,2,3,4].map(n => <i key={n} />)}<MusicNotes size={62} weight="thin" /></div><span className="cover-number">{String(index + 1).padStart(2, '0')}</span><span className="cover-play"><Play size={19} weight="fill" /></span></div>
+              <div className="song-card-copy"><span className="song-source">{song.source ? '我的乐谱' : '基础练习'}</span><h3>{song.name}</h3><p><span>{song.bpm} <small>BPM</small></span><span>{song.notes.length} 个音符</span></p></div>
+            </button>
+            {song.source && onDelete && <div className="song-delete">{pendingDelete === song.id ? <><span>删除这首曲目？</span><button onClick={() => { onDelete(song.id); setPendingDelete(null) }}>删除</button><button onClick={() => setPendingDelete(null)}>取消</button></> : <button aria-label={`删除 ${song.name}`} onClick={() => setPendingDelete(song.id)}><Trash size={15} /> 删除</button>}</div>}
+          </article>
+        })}
+      </div>
+      {!visible.length && <div className="library-empty"><MusicNotes size={40} weight="thin" /><h3>{query ? '没有找到这首曲子' : '你的曲库，等待第一首收藏'}</h3><p>{query ? '试试其他曲名，或清除搜索条件。' : '从「导入乐谱」添加 MIDI、图片或 PDF。'}</p></div>}
     </div>
   )
 }
