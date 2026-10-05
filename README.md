@@ -206,6 +206,7 @@ scripts/                         # 开发工具
 └── upload-e2e.mjs               # OMR 上传端到端测试
 .github/workflows/build-windows.yml  # Windows 云端打包
 docs/ui-design.md                # UI 设计规范
+docs/history.md                  # 开发历史（116 提交分阶段整理）
 ```
 
 ## 常用脚本
